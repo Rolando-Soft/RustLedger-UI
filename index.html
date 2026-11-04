@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger</title>
+<style>
+  :root { color-scheme: light dark; --b: #8884; --accent: #2563eb; }
+  body { font: 15px/1.4 system-ui, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1rem; margin-top: 2rem; }
+  label { display: block; font-size: .8rem; opacity: .75; margin-bottom: 2px; }
+  input, select { font: inherit; padding: 6px 8px; border: 1px solid var(--b); border-radius: 6px; background: transparent; color: inherit; box-sizing: border-box; }
+  .row { align-items: flex-end; display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 120px; }
+  .row > div input, .row > div select { width: 100%; }
+  .posting { display: grid; grid-template-columns: 56px 1fr 130px 80px 30px; gap: 8px; margin-bottom: 8px; }
+  button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--b); background: transparent; color: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  pre { background: #8881; border: 1px solid var(--b); border-radius: 6px; padding: 10px; overflow-x: auto; margin: 0; min-height: 3.5em; }
+  #status { margin: 10px 0; min-height: 1.4em; font-size: .9rem; white-space: pre-wrap; }
+  .ok { color: #16a34a; } .bad { color: #dc2626; } .muted { opacity: .7; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  td { padding: 4px 8px; border-bottom: 1px solid var(--b); vertical-align: top; }
+  nav { display: flex; gap: 6px; margin-bottom: 1.2rem; }
+  nav button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .chips button { padding: 4px 10px; border-radius: 99px; font-size: .85rem; }
+  .chips button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chips input { margin-left: auto; min-width: 180px; }
+  tr.pending td.st { opacity: .6; } tr.marked td.st { color: #d97706; font-weight: 600; } tr.cleared { opacity: .6; }
+  .sum { display: flex; gap: 22px; flex-wrap: wrap; margin: 14px 0; font-variant-numeric: tabular-nums; }
+  .sum div span { display: block; font-size: .75rem; opacity: .7; }
+  .sum b { font-size: 1.05rem; }
+  .combo { position: absolute; left: 0; right: 0; top: 100%; z-index: 10; max-height: 280px; overflow-y: auto; margin-top: 2px;
+           background: Canvas; color: CanvasText; border: 1px solid var(--b); border-radius: 6px; box-shadow: 0 6px 18px #0003; }
+  .combo .opt { padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+  .combo .opt.active { background: var(--accent); color: #fff; }
+  .combo .opt b { text-decoration: underline; }
+  .combo .none { padding: 5px 9px; opacity: .6; }
+  a.lnk { color: var(--accent); text-decoration: none; } a.lnk:hover { text-decoration: underline; }
+  tr.acct { cursor: pointer; } tr.acct:hover { background: #8881; }
+  tr.closed td { opacity: .5; text-decoration: line-through; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #gTable td:first-child, #gTable td.num { white-space: nowrap; }
+  #gTable td.num { padding-left: 18px; }
+  #gTable td:nth-child(2) { width: 40%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<nav>
+  <button id="navReg" class="active">Register</button>
+  <button id="navTxn">Add transaction</button>
+  <button id="navAcct">Accounts</button>
+  <button id="navRec">Reconcile</button>
+</nav>
+
+<section id="tabTxn" hidden>
+<h1 id="txnTitle">Add transaction</h1>
+<div id="editBanner" hidden style="display:none;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;border:1px solid #d97706;border-radius:6px">
+  <span id="editText" style="flex:1"></span>
+  <button type="button" id="editCancel">Cancel</button>
+  <button type="button" id="editDelete" style="color:#dc2626">Delete</button>
+</div>
+
+<div class="row">
+  <div style="flex:0 0 150px"><label>Date</label><input type="date" id="date"></div>
+  <div style="flex:0 0 110px"><label>Flag</label>
+    <select id="flag"><option value="!">! pending</option><option value="*">* cleared</option></select></div>
+  <div><label>Payee</label><input id="payee" list="payees" autocomplete="off"></div>
+  <div><label>Narration</label><input id="narration" autocomplete="off"></div>
+</div>
+<div class="row">
+  <div><label>Tags (space separated)</label><input id="tags"></div>
+  <div><label>Links</label><input id="links"></div>
+</div>
+
+<label>Postings (leave one amount blank to let it balance)</label>
+<div id="postings"></div>
+<button type="button" id="addPosting">+ Add posting</button>
+<span id="balance" class="muted" style="margin-left:12px"></span>
+
+<h2>Preview</h2>
+<pre id="preview"></pre>
+<div id="status"></div>
+<button class="primary" id="save" disabled>Save</button>
+
+<h2>Recent</h2>
+<table id="recent"></table>
+</section>
+
+<section id="tabAcct" hidden>
+<h1>Accounts</h1>
+<div class="chips" id="chips"></div>
+<table id="acctTable"></table>
+
+<h2>New account</h2>
+<div class="muted" style="font-size:.85rem;margin-bottom:10px">Tip: click an account above to start from its name.</div>
+<div class="row">
+  <div style="flex:0 0 150px"><label>Opened</label><input type="date" id="aDate"></div>
+  <div style="flex:0 0 150px"><label>Type</label>
+    <select id="aType"><option>Assets</option><option>Liabilities</option><option>Equity</option><option>Income</option><option>Expenses</option></select></div>
+  <div style="flex:2"><label>Name (e.g. Bank:Checking)</label><input id="aName" autocomplete="off"></div>
+  <div><label>Currencies (clear for any)</label><input id="aCur" value="USD"></div>
+</div>
+<pre id="aPreview"></pre>
+<div id="aStatus" style="margin:10px 0;min-height:1.4em;font-size:.9rem;white-space:pre-wrap"></div>
+<button class="primary" id="aSave" disabled>Create account</button>
+</section>
+
+<section id="tabReg">
+<h1>Register</h1>
+<div class="row">
+  <div style="position:relative"><label>Account</label><input id="gAcct" placeholder="All accounts — type to search" autocomplete="off"><div id="gList" class="combo" style="display:none"></div></div>
+  <div style="flex:0 0 170px"><label>Period</label>
+    <select id="gPeriod"><option value="all">All</option><option value="this">This month</option><option value="last">Last month</option><option value="last3">Last 3 months</option><option value="custom">Custom month…</option></select></div>
+  <div id="gCustom" style="display:none;flex:0 0 auto"><label>Month and year</label>
+    <span style="display:flex;gap:6px"><select id="gMonth"></select><input type="number" id="gYear" style="width:90px"></span></div>
+  <div style="flex:0 0 150px"><label>Status</label>
+    <select id="gStatus"><option value="">All</option><option value="pending">Pending !</option><option value="marked">Marked ?</option><option value="cleared">Cleared *</option></select></div>
+  <div><label>Search</label><input id="gSearch" placeholder="Payee, narration, account, amount" autocomplete="off"></div>
+</div>
+<div id="gInfo" class="muted" style="font-size:.85rem;margin-bottom:6px"></div>
+<table id="gTable"></table>
+<button type="button" id="gMore" style="margin-top:10px;display:none">Show more</button>
+</section>
+
+<section id="tabRec" hidden>
+<h1>Reconcile</h1>
+<div class="row">
+  <div style="flex:2"><label>Account</label><select id="rAcct"></select></div>
+  <div style="flex:0 0 150px"><label>Statement end date</label><input type="date" id="rDate"></div>
+  <div><label id="rStmtLabel">Statement ending balance</label><input id="rStmt" inputmode="decimal" autocomplete="off"></div>
+</div>
+<div class="row">
+  <div style="flex:0 0 190px"><label>Show period</label>
+    <select id="rPeriod"><option value="all">All</option><option value="this">This month</option><option value="last">Last month</option><option value="last3">Last 3 months</option><option value="custom">Custom month…</option></select></div>
+  <div id="rCustom" style="display:none;flex:0 0 auto"><label>Month and year</label>
+    <span style="display:flex;gap:6px"><select id="rMonth"></select><input type="number" id="rYear" style="width:90px"></span></div>
+</div>
+<div class="muted" style="font-size:.85rem">Tick the transactions that appear on the statement. <b>Save progress</b> writes the ticks to the file as <code>?</code> so you can stop and come back. <b>Finish</b> turns them into <code>*</code> once the difference is zero.</div>
+<div class="sum" id="rSum"></div>
+<label style="display:inline-flex;align-items:center;gap:6px;opacity:1;margin-bottom:6px"><input type="checkbox" id="rHide" checked> Hide reconciled <span id="rHidden" class="muted"></span></label>
+<label style="display:inline-flex;align-items:center;gap:6px;opacity:1;margin:0 0 6px 16px"><input type="checkbox" id="rHideTicked"> Hide ticked <span id="rHiddenT" class="muted"></span></label>
+<div id="rOlder" class="muted" style="font-size:.85rem;margin-bottom:6px"></div>
+<table id="rTable"></table>
+<div style="margin:12px 0"><label style="display:inline;opacity:1"><input type="checkbox" id="rAssert" style="margin-right:6px"><span id="rAssertLabel">Add a balance assertion</span></label></div>
+<div id="rStatus" style="margin:10px 0;min-height:1.4em;font-size:.9rem;white-space:pre-wrap"></div>
+<button id="rSaveBtn" disabled>Save progress</button>
+<button class="primary" id="rFinish" disabled>Finish reconciliation</button>
+<button type="button" id="rAdd" style="float:right" title="Add a missing transaction, then return here">+ Add transaction</button>
+</section>
+
+<datalist id="payees"></datalist>
+<datalist id="accounts"></datalist>
+
+<script>
+const $ = id => document.getElementById(id);
+let editing = null, delArmed = false, payees = {}, timer = 0, valid = false, allAccounts = [], typeFilter = 'All', textFilter = '', aTimer = 0;
+const TYPES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
+
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+function addPosting(p = {}) {
+  const el = document.createElement('div');
+  el.className = 'posting';
+  el.dataset.orig = p.orig ?? '';
+  const fl = p.flag || '';
+  el.innerHTML = `<select class="pflag" title="Posting flag: blank, ? marked for reconciliation, * reconciled"><option value="">–</option>${fl === '!' ? '<option value="!">!</option>' : ''}<option value="?">?</option><option value="*">*</option></select>
+    <input class="acct" list="accounts" placeholder="Account" autocomplete="off">
+    <input class="amt" placeholder="Amount" inputmode="decimal" autocomplete="off">
+    <input class="cur" value="USD">
+    <button type="button" title="Remove">×</button>`;
+  el.querySelector('.pflag').value = fl;
+  el.querySelector('.acct').value = p.account || '';
+  el.querySelector('.amt').value = p.amount || '';
+  el.querySelector('.cur').value = p.currency || 'USD';
+  el.querySelector('button').onclick = () => { if ($('postings').children.length > 2) { el.remove(); refresh(); } };
+  el.addEventListener('input', refresh);
+  $('postings').append(el);
+}
+
+function collect() {
+  return {
+    date: $('date').value, flag: $('flag').value, payee: $('payee').value, narration: $('narration').value,
+    tags: $('tags').value, links: $('links').value,
+    postings: [...$('postings').children].map(r => ({
+      pflag: r.querySelector('.pflag').value, account: r.querySelector('.acct').value, amount: r.querySelector('.amt').value, currency: r.querySelector('.cur').value,
+      orig: r.dataset.orig === '' ? null : +r.dataset.orig,
+    })),
+    ...(editing ? { hash: editing.hash, lineno: editing.lineno } : {}),
+  };
+}
+
+function updateBalance(d) {
+  const sums = {}; let blank = 0;
+  for (const p of d.postings) {
+    if (!p.account.trim()) continue;
+    if (!p.amount.trim()) { blank++; continue; }
+    const n = parseFloat(p.amount);
+    if (!isNaN(n)) sums[p.currency || 'USD'] = (sums[p.currency || 'USD'] || 0) + n;
+  }
+  const parts = Object.entries(sums).filter(([, v]) => Math.abs(v) > 1e-9);
+  $('balance').textContent = !parts.length ? '' : blank
+    ? 'blank posting will be ' + parts.map(([c, v]) => `${(-v).toFixed(2)} ${c}`).join(', ')
+    : 'unbalanced by ' + parts.map(([c, v]) => `${v.toFixed(2)} ${c}`).join(', ');
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return { status: r.status, body: await r.json() };
+}
+
+function refresh() {
+  clearTimeout(timer);
+  const d = collect();
+  updateBalance(d);
+  timer = setTimeout(async () => {
+    const { body } = await post(editing ? '/api/transactions/edit/validate' : '/api/validate', d);
+    valid = !!body.ok;
+    $('preview').textContent = body.text || '';
+    $('status').className = valid ? 'ok' : (body.error ? 'muted' : 'bad');
+    $('status').textContent = valid ? '✓ Valid' : (body.error || body.message || '');
+    $('save').disabled = !valid;
+  }, 250);
+}
+
+async function save() {
+  const { body } = await post(editing ? '/api/transactions/edit' : '/api/transactions', collect());
+  if (body.error) { $('status').className = 'bad'; $('status').textContent = body.error; return; }
+  const wasEdit = !!editing;
+  endEdit();
+  loadRecent();
+  reset();
+  leaveEdit();
+  $('status').className = 'ok';
+  $('status').textContent = (wasEdit ? '✓ Changes saved' : '✓ Saved') + ' (backup: ' + body.backup + ')';
+}
+
+function reset() {
+  for (const id of ['payee', 'narration', 'tags', 'links']) $(id).value = '';
+  $('flag').value = '!';
+  $('postings').innerHTML = '';
+  addPosting(); addPosting();
+  $('payee').focus();
+  valid = false; $('save').disabled = true;
+  $('preview').textContent = '';
+}
+
+function prefill() {
+  if (editing) return;
+  const t = payees[$('payee').value];
+  if (!t) return;
+  $('narration').value = t.narration;
+  $('postings').innerHTML = '';
+  t.postings.forEach(addPosting);
+  refresh();
+}
+
+async function loadRecent() {
+  const rows = await (await fetch('/api/recent')).json();
+  $('recent').innerHTML = rows.map(t => `<tr><td>${t.date} ${t.flag}</td><td>${descCell(t)}</td>
+    <td>${t.postings.map(p => esc(p.account)).join('<br>')}</td>
+    <td class="num">${t.postings.map(p => esc(p.amount + ' ' + p.currency)).join('<br>')}</td>
+</tr>`).join('');
+  wireEditLinks($('recent'));
+}
+// Description cell: the payee (or narration) is a link that opens the transaction for editing.
+function descCell(t) {
+  const title = esc(t.payee || t.narration || '(no description)'), sub = t.payee ? `<br><span class="muted" title="${esc(t.narration)}">${esc(t.narration)}</span>` : '';
+  return (t.lineno ? `<a href="#" class="lnk" data-edit="${t.lineno}" title="${title}">${title}</a>` : title) + sub;
+}
+function wireEditLinks(root) {
+  root.querySelectorAll('a[data-edit]').forEach(a => a.onclick = e => { e.preventDefault(); startEdit(+a.dataset.edit); });
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+(async () => {
+  $('date').value = today();
+  addPosting(); addPosting();
+  const [accts, pay] = await Promise.all([fetch('/api/accounts').then(r => r.json()), fetch('/api/payees').then(r => r.json())]);
+  payees = pay;
+  setAccounts(accts);
+  renderAccounts();
+  $('payees').innerHTML = Object.keys(pay).map(p => `<option value="${esc(p)}">`).join('');
+  loadRecent();
+  refresh();
+  initReg();
+})();
+
+// ---- accounts tab ----
+function acctRank(a) { return TYPES.indexOf(a.account.split(':')[0]); }
+// The one account order used everywhere: by type (Assets, Liabilities, Equity, Income, Expenses), then name.
+function byAccount(x, y) { return acctRank(x) - acctRank(y) || x.account.localeCompare(y.account); }
+function setAccounts(list) { allAccounts = list.sort(byAccount); }
+
+function renderAccounts() {
+  $('accounts').innerHTML = allAccounts.filter(a => !a.closed).map(a => `<option value="${esc(a.account)}">`).join('');
+  const counts = Object.fromEntries(TYPES.map(t => [t, allAccounts.filter(a => a.account.startsWith(t + ':')).length]));
+  $('chips').innerHTML = ['All', ...TYPES].map(t =>
+    `<button data-t="${t}" class="${t === typeFilter ? 'active' : ''}">${t} ${t === 'All' ? allAccounts.length : counts[t]}</button>`).join('')
+    + '<input id="aSearch" placeholder="Search accounts" value="' + esc(textFilter) + '">';
+  $('chips').querySelectorAll('button').forEach(b => b.onclick = () => { typeFilter = b.dataset.t; renderAccounts(); });
+  $('aSearch').oninput = e => { textFilter = e.target.value; renderAccounts(); $('aSearch').focus(); $('aSearch').setSelectionRange(textFilter.length, textFilter.length); };
+  const q = textFilter.toLowerCase();
+  const rows = allAccounts
+    .filter(a => (typeFilter === 'All' || a.account.startsWith(typeFilter + ':')) && a.account.toLowerCase().includes(q))
+    .sort(byAccount);
+  $('acctTable').innerHTML = '<tr class="muted"><td>Account</td><td>Opened</td><td>Currencies</td><td class="num">Balance</td></tr>' + rows.map(a =>
+    `<tr class="acct ${a.closed ? 'closed' : ''}" data-a="${esc(a.account)}"><td>${esc(a.account)}</td><td>${a.open}${a.closed ? ' – ' + a.closed : ''}</td>
+     <td>${esc(a.currencies.join(', '))}</td>
+     <td class="num">${a.balance.map(b => esc(b.amount + ' ' + b.currency)).join('<br>')}</td></tr>`).join('')
+    || '<tr><td class="muted">No matching accounts</td></tr>';
+  $('acctTable').querySelectorAll('tr.acct').forEach(r => r.onclick = () => {
+    const [type, ...rest] = r.dataset.a.split(':');
+    $('aType').value = type; $('aName').value = rest.join(':') + ':'; $('aName').focus(); refreshAcct();
+  });
+}
+
+function collectAcct() {
+  return { date: $('aDate').value, account: $('aType').value + ':' + $('aName').value.trim(), currencies: $('aCur').value };
+}
+
+function refreshAcct() {
+  clearTimeout(aTimer);
+  aTimer = setTimeout(async () => {
+    const { body } = await post('/api/accounts/validate', collectAcct());
+    $('aPreview').textContent = body.text || '';
+    $('aStatus').className = body.ok ? 'ok' : (body.error ? 'muted' : 'bad');
+    $('aStatus').textContent = body.ok ? '✓ Valid' : (body.error || body.message || '');
+    $('aSave').disabled = !body.ok;
+  }, 250);
+}
+
+async function saveAcct() {
+  const { body } = await post('/api/accounts', collectAcct());
+  if (body.error) { $('aStatus').className = 'bad'; $('aStatus').textContent = body.error; return; }
+  setAccounts(await (await fetch('/api/accounts')).json());
+  renderAccounts();
+  $('aName').value = ''; $('aCur').value = 'USD'; $('aPreview').textContent = ''; $('aSave').disabled = true;
+  $('aStatus').className = 'ok'; $('aStatus').textContent = '✓ Created (backup: ' + body.backup + ')';
+}
+
+let curTab = 'reg', editFrom = null;
+function showTab(name) {
+  curTab = name;
+  for (const [n, id] of [['txn', 'Txn'], ['reg', 'Reg'], ['acct', 'Acct'], ['rec', 'Rec']]) {
+    $('tab' + id).hidden = n !== name;
+    $('nav' + id).classList.toggle('active', n === name);
+  }
+}
+$('navTxn').onclick = () => showTab('txn');
+$('navReg').onclick = () => { showTab('reg'); initReg(); };
+$('navAcct').onclick = () => { showTab('acct'); $('aDate').value ||= today(); };
+$('navRec').onclick = () => { showTab('rec'); initRec(); };
+for (const id of ['aDate', 'aType', 'aName', 'aCur']) $(id).addEventListener('input', refreshAcct);
+$('aSave').onclick = saveAcct;
+
+// ---- editing an existing transaction ----
+function endEdit() {
+  editing = null; delArmed = false;
+  $('editBanner').style.display = 'none';
+  $('txnTitle').textContent = 'Add transaction';
+  $('save').textContent = 'Save';
+  $('editDelete').textContent = 'Delete';
+}
+
+async function startEdit(lineno) {
+  const r = await fetch('/api/transaction?lineno=' + lineno);
+  const t = await r.json();
+  editFrom = curTab;
+  showTab('txn');
+  if (t.error || !t.editable) {
+    $('status').className = 'bad';
+    $('status').textContent = t.error || ("This transaction can't be edited here: " + t.reason + '. Edit it in your editor.');
+    return;
+  }
+  editing = { lineno, hash: t.hash };
+  $('date').value = t.date; $('flag').value = t.flag; $('payee').value = t.payee; $('narration').value = t.narration;
+  $('tags').value = t.tags; $('links').value = t.links;
+  $('postings').innerHTML = '';
+  t.postings.forEach(p => addPosting({ ...p, currency: p.currency || 'USD' }));
+  while ($('postings').children.length < 2) addPosting();
+  $('txnTitle').textContent = 'Edit transaction';
+  $('editText').textContent = `Editing the transaction from ${t.date}. Use the box at the left of each posting to change its flag (? marked, * reconciled).`;
+  $('editBanner').style.display = 'flex';
+  $('editDelete').style.display = '';
+  $('save').textContent = 'Save changes';
+  window.scrollTo(0, 0);
+  refresh();
+}
+
+function addFromRec() {
+  endEdit(); reset();
+  editFrom = 'rec';
+  showTab('txn');
+  $('date').value = $('rDate').value || today();
+  const first = $('postings').children[0];
+  first.querySelector('.acct').value = $('rAcct').value;
+  $('editText').textContent = 'Adding a transaction from Reconcile. You will return there after saving; your ticks are kept.';
+  $('editDelete').style.display = 'none';
+  $('editBanner').style.display = 'flex';
+  $('status').textContent = '';
+  window.scrollTo(0, 0);
+  $('payee').focus();
+  refresh();
+}
+$('rAdd').onclick = addFromRec;
+
+function leaveEdit() {
+  const back = editFrom; editFrom = null;
+  if (back && back !== 'txn') showTab(back);
+  if (back === 'rec') loadRec(false);
+  if (!$('tabReg').hidden || back === 'reg') loadRegister();
+}
+$('editCancel').onclick = () => { endEdit(); reset(); $('status').textContent = ''; leaveEdit(); };
+$('editDelete').onclick = async () => {
+  if (!delArmed) { delArmed = true; $('editDelete').textContent = 'Click again to delete'; return; }
+  const { body } = await post('/api/transactions/delete', { hash: editing.hash, lineno: editing.lineno });
+  if (body.error) { $('status').className = 'bad'; $('status').textContent = body.error; return; }
+  endEdit(); loadRecent(); reset(); leaveEdit();
+  $('status').className = 'ok'; $('status').textContent = '✓ Deleted (backup: ' + body.backup + ')';
+};
+
+// ---- register tab ----
+const reg = { txns: [], limit: 200, acct: '' };
+
+async function loadRegister() {
+  reg.txns = await (await fetch('/api/register')).json();
+  renderRegister();
+}
+
+function initReg() {
+  fillMonths('gMonth', 'gYear');
+  $('gAcct').value = reg.acct;
+  reg.limit = 200;
+  loadRegister();
+}
+
+// Status of a transaction, looking only at the chosen account's postings when one is chosen.
+function regStatus(t, acct) {
+  const ps = acct ? t.postings.filter(p => p.account === acct) : t.postings;
+  if (ps.some(p => p.state === 'marked')) return 'marked';
+  return ps.every(p => p.state === 'cleared') ? 'cleared' : 'pending';
+}
+
+function renderRegister() {
+  const acct = reg.acct, q = $('gSearch').value.trim().toLowerCase(), st = $('gStatus').value;
+  const { from, end } = periodRange($('gPeriod').value, $('gMonth').value, $('gYear').value);
+  $('gCustom').style.display = $('gPeriod').value === 'custom' ? '' : 'none';
+
+  // Running balance over the whole history, so filtering never changes it.
+  const after = new Map(), bal = {};
+  if (acct) for (const t of reg.txns) {
+    for (const p of t.postings.filter(p => p.account === acct)) bal[p.currency] = Math.round(((bal[p.currency] || 0) + num(p.amount)) * 1e6) / 1e6;
+    const cur = (t.postings.find(p => p.account === acct) || {}).currency;
+    if (cur) after.set(t, { cur, v: bal[cur] });
+  }
+
+  const rows = reg.txns.filter(t => {
+    if (acct && !t.postings.some(p => p.account === acct)) return false;
+    if (from && t.date < from) return false;
+    if (end && t.date > end) return false;
+    if (st && regStatus(t, acct) !== st) return false;
+    if (q && ![t.payee, t.narration, ...t.postings.map(p => p.account + ' ' + p.amount)].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  }).reverse();
+
+  const byOrder = byAccount;  // postings within a row follow the account order too
+  const mark = p => (p.flag ? `<span class="muted">${esc(p.flag)}</span> ` : '');
+  const shown = rows.slice(0, reg.limit);
+  $('gTable').innerHTML = `<tr class="muted"><td>Date</td><td>Description</td><td>${acct ? 'Other account' : 'Accounts'}</td><td class="num">Amount</td>${acct ? '<td class="num">Balance</td>' : ''}</tr>`
+    + shown.map(t => {
+      let accts, amts;
+      if (acct) {
+        const mine = t.postings.filter(p => p.account === acct);
+        accts = t.postings.filter(p => p.account !== acct).sort(byOrder).map(p => esc(p.account)).join('<br>');
+        amts = mine.map(p => mark(p) + esc(p.amount + ' ' + p.currency)).join('<br>');
+      } else {
+        const sorted = t.postings.slice().sort(byOrder);
+        accts = sorted.map(p => mark(p) + esc(p.account)).join('<br>');
+        amts = sorted.map(p => esc(p.amount + ' ' + p.currency)).join('<br>');
+      }
+      const b = after.get(t);
+      return `<tr><td>${t.date} ${esc(t.flag)}</td><td>${descCell(t)}</td><td>${accts}</td><td class="num">${amts}</td>${acct ? `<td class="num">${b ? money(b.v) + ' ' + esc(b.cur) : ''}</td>` : ''}</tr>`;
+    }).join('') || '<tr><td class="muted">No transactions match</td></tr>';
+  wireEditLinks($('gTable'));
+  $('gMore').style.display = rows.length > shown.length ? '' : 'none';
+  $('gMore').textContent = `Show more (${rows.length - shown.length} left)`;
+  $('gInfo').textContent = `${rows.length} transaction${rows.length === 1 ? '' : 's'}` + (acct && bal && Object.keys(bal).length ? ' · current balance ' + Object.entries(bal).map(([c, v]) => money(v) + ' ' + c).join(', ') : '');
+}
+
+for (const id of ['gPeriod', 'gMonth', 'gYear', 'gStatus']) $(id).addEventListener('change', () => { reg.limit = 200; renderRegister(); });
+$('gSearch').addEventListener('input', () => { reg.limit = 200; renderRegister(); });
+$('gMore').onclick = () => { reg.limit += 200; renderRegister(); };
+
+// ---- fuzzy account picker (register) ----
+// Returns { score, idx } (idx = matched character positions) or null when q doesn't match s.
+function fuzzy(q, s) {
+  q = q.toLowerCase().replace(/\s+/g, '');
+  if (!q) return { score: 0, idx: [] };
+  const t = s.toLowerCase(), at = t.indexOf(q);
+  if (at >= 0) {  // an exact substring beats any scattered match
+    return { score: 1000 - at - (t.length - q.length) * 0.1 + (at === 0 || t[at - 1] === ':' ? 50 : 0), idx: [...q].map((_, i) => at + i) };
+  }
+  const idx = []; let j = 0, score = 0, prev = -2;
+  for (let i = 0; i < t.length && j < q.length; i++) {
+    if (t[i] !== q[j]) continue;
+    score += (i === prev + 1 ? 5 : 1) + (i === 0 || t[i - 1] === ':' ? 3 : 0);
+    idx.push(i); prev = i; j++;
+  }
+  return j === q.length ? { score: score - t.length * 0.1, idx } : null;
+}
+
+const combo = { typing: false, active: 0, shown: [] };
+const highlight = (text, idx) => { const on = new Set(idx); return [...text].map((c, i) => on.has(i) ? `<b>${esc(c)}</b>` : esc(c)).join(''); };
+
+function comboRender() {
+  const q = combo.typing ? $('gAcct').value.trim() : '';
+  let shown;
+  if (q) {
+    shown = allAccounts.map(a => ({ account: a.account, m: fuzzy(q, a.account) })).filter(x => x.m)
+      .sort((x, y) => y.m.score - x.m.score);  // stable sort: ties keep the account order
+  } else {
+    shown = [{ account: '', label: 'All accounts', m: { idx: [] } }, ...allAccounts.map(a => ({ account: a.account, m: { idx: [] } }))];
+  }
+  combo.shown = shown;
+  combo.active = Math.min(combo.active, Math.max(shown.length - 1, 0));
+  $('gList').innerHTML = shown.length
+    ? shown.map((x, i) => `<div class="opt ${i === combo.active ? 'active' : ''}" data-i="${i}">${x.label ? esc(x.label) : highlight(x.account, x.m.idx)}</div>`).join('')
+    : '<div class="none">No matching accounts</div>';
+  $('gList').style.display = '';
+  $('gList').querySelector('.opt.active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function comboClose() { $('gList').style.display = 'none'; combo.typing = false; $('gAcct').value = reg.acct; }
+
+function comboPick(account) {
+  reg.acct = account; reg.limit = 200;
+  comboClose();
+  renderRegister();
+}
+
+$('gAcct').addEventListener('focus', () => { combo.typing = false; combo.active = 0; $('gAcct').select(); comboRender(); });
+$('gAcct').addEventListener('input', () => { combo.typing = true; combo.active = 0; comboRender(); });
+$('gAcct').addEventListener('blur', () => {
+  if (!$('gAcct').value.trim() && reg.acct) comboPick('');  // clearing the box means "all accounts"
+  else comboClose();
+});
+$('gAcct').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if ($('gList').style.display === 'none') return comboRender();
+    const n = combo.shown.length; if (!n) return;
+    combo.active = (combo.active + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; comboRender();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const x = combo.shown[combo.active]; if (x) comboPick(x.account);
+    $('gAcct').blur();
+  } else if (e.key === 'Escape') {
+    comboClose(); $('gAcct').blur();
+  }
+});
+// mousedown (not click) so the pick lands before the input loses focus
+$('gList').addEventListener('mousedown', e => {
+  e.preventDefault();
+  const el = e.target.closest('.opt'); if (!el) return;
+  comboPick(combo.shown[+el.dataset.i].account);
+  $('gAcct').blur();
+});
+
+// ---- reconcile tab ----
+const rec = { data: null, ticks: new Set(), busy: false };
+const isLiability = () => $('rAcct').value.startsWith('Liabilities:');
+const num = v => parseFloat(String(v).replace(/[,$\s]/g, ''));
+const money = v => (Math.round(v * 100) / 100).toFixed(2);
+const nextDay = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+const serverMarked = () => new Set((rec.data?.rows || []).filter(r => r.state === 'marked').map(r => r.lineno));
+const dirtyChanges = () => {
+  const was = serverMarked(), out = [];
+  for (const r of rec.data?.rows || []) {
+    if (r.locked) continue;
+    const now = rec.ticks.has(r.lineno), before = was.has(r.lineno);
+    if (now !== before) out.push({ lineno: r.lineno, from: before ? '?' : null, to: now ? '?' : null });
+  }
+  return out;
+};
+
+const pad = n => String(n).padStart(2, '0');
+const ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;          // m is 0-based
+const monthStart = (y, m) => ymd(y, m, 1);
+const monthEnd = (y, m) => ymd(y, m, new Date(y, m + 1, 0).getDate());
+
+// Period -> { from, to, end }. `to` is capped at today (the default statement date);
+// `end` is the real last day of the period (a register also shows future-dated entries).
+function periodRange(period, month, year) {
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth(), t = today();
+  const span = (d0, d1, cap) => { const e = monthEnd(d1.getFullYear(), d1.getMonth()); return { from: monthStart(d0.getFullYear(), d0.getMonth()), to: cap && e > t ? t : e, end: e }; };
+  switch (period) {
+    case 'this': return span(now, now, true);
+    case 'last': { const d = new Date(y, m - 1, 1); return span(d, d, false); }
+    case 'last3': return span(new Date(y, m - 2, 1), now, true);
+    case 'custom': { const d = new Date(+year || y, +month, 1); return span(d, d, true); }
+    default: return { from: null, to: t, end: null };
+  }
+}
+const rRange = () => periodRange($('rPeriod').value, $('rMonth').value, $('rYear').value);
+const rFrom = () => rRange().from;
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fillMonths(monthSel, yearInput) {
+  if ($(monthSel).options.length) return;
+  $(monthSel).innerHTML = MONTHS.map((n, i) => `<option value="${i}">${n}</option>`).join('');
+  $(monthSel).value = new Date().getMonth(); $(yearInput).value = new Date().getFullYear();
+}
+
+function applyPeriod() {
+  $('rCustom').style.display = $('rPeriod').value === 'custom' ? '' : 'none';
+  const { to } = rRange();
+  if (to) $('rDate').value = to;
+  loadRec(false);
+}
+
+function initRec() {
+  fillMonths('rMonth', 'rYear');
+  const opts = allAccounts.filter(a => !a.closed && /^(Assets|Liabilities):/.test(a.account)).map(a => a.account);
+  if ($('rAcct').options.length !== opts.length) {
+    $('rAcct').innerHTML = opts.map(a => `<option>${esc(a)}</option>`).join('');
+  }
+  $('rDate').value ||= today();
+  loadRec(true);
+}
+
+async function loadRec(resetTicks) {
+  const account = $('rAcct').value;
+  if (!account) return;
+  const r = await fetch('/api/reconcile?account=' + encodeURIComponent(account) + '&through=' + $('rDate').value);
+  const body = await r.json();
+  if (body.error) { rStatus(body.error, 'bad'); return; }
+  rec.data = body;
+  rec.ticks = resetTicks ? serverMarked() : new Set([...rec.ticks].filter(n => body.rows.some(x => x.lineno === n && !x.locked)));
+  renderRec();
+}
+
+function rStatus(msg, cls) { $('rStatus').className = cls || ''; $('rStatus').textContent = msg; }
+
+function renderRec() {
+  const d = rec.data; if (!d) return;
+  $('rStmtLabel').textContent = isLiability() ? 'Statement balance (amount owed)' : 'Statement ending balance';
+  let ticked = 0, open = 0;
+  for (const r of d.rows) { if (!r.locked && rec.ticks.has(r.lineno)) ticked += num(r.amount); if (!r.locked && !rec.ticks.has(r.lineno)) open++; }
+  const cleared = num(d.cleared), computed = cleared + ticked;
+  const raw = $('rStmt').value.trim();
+  const stmt = raw === '' || isNaN(num(raw)) ? null : (isLiability() ? -num(raw) : num(raw));
+  const diff = stmt === null ? null : stmt - computed;
+  const zero = diff !== null && Math.abs(diff) < 0.005;
+  const shown = v => isLiability() ? money(-v) : money(v);
+  $('rSum').innerHTML = [['Reconciled', shown(cleared)], ['Ticked', shown(ticked)], ['Computed', shown(computed)],
+    ['Statement', stmt === null ? '—' : shown(stmt)], ['Difference', diff === null ? '—' : (zero ? '0.00 ✓' : shown(diff))]]
+    .map(([k, v]) => `<div><span>${k}</span><b class="${k === 'Difference' && diff !== null ? (zero ? 'ok' : 'bad') : ''}">${v}</b></div>`).join('')
+    + `<div><span>Currency</span><b>${esc(d.currency)}</b></div>`;
+  const hide = $('rHide').checked, from = rFrom();
+  const inPeriod = r => !from || r.date >= from;
+  const hiddenCount = d.rows.filter(r => hide && r.locked && inPeriod(r)).length;
+  const older = d.rows.filter(r => !inPeriod(r));
+  const olderOpen = older.filter(r => !r.locked && !rec.ticks.has(r.lineno)).length;
+  const hideT = $('rHideTicked').checked;
+  const isTicked = r => !r.locked && rec.ticks.has(r.lineno);
+  const hiddenT = d.rows.filter(r => hideT && isTicked(r) && inPeriod(r)).length;
+  $('rHiddenT').textContent = hiddenT ? `(${hiddenT} hidden)` : '';
+  $('rHidden').textContent = hiddenCount ? `(${hiddenCount} hidden)` : '';
+  $('rOlder').textContent = older.length
+    ? `${older.length} earlier transaction(s) not shown` + (olderOpen ? `, ${olderOpen} of them still unreconciled` : '') : '';
+  $('rTable').innerHTML = d.rows.filter(r => inPeriod(r) && !(hide && r.locked) && !(hideT && isTicked(r))).map(r => {
+    const on = r.locked || rec.ticks.has(r.lineno);
+    const st = r.locked ? 'reconciled' : (rec.ticks.has(r.lineno) ? (serverMarked().has(r.lineno) ? 'marked ?' : 'will mark') : 'pending');
+    return `<tr class="${r.locked ? 'cleared' : (rec.ticks.has(r.lineno) ? 'marked' : 'pending')}">
+      <td><input type="checkbox" data-l="${r.lineno}" ${on ? 'checked' : ''} ${r.locked ? 'disabled' : ''}></td>
+      <td>${r.date}</td><td>${esc(r.payee)} <span class="muted">${esc(r.narration)}</span><br><span class="muted">${r.other.map(esc).join(', ')}</span></td>
+      <td class="num">${esc(r.amount)}</td><td class="st">${st}</td></tr>`;
+  }).join('') || `<tr><td class="muted">${d.rows.length ? 'Nothing to show here (reconciled, ticked or outside the period)' : 'No transactions for this account up to that date'}</td></tr>`;
+  $('rTable').querySelectorAll('input[data-l]').forEach(c => c.onchange = () => {
+    const n = +c.dataset.l; c.checked ? rec.ticks.add(n) : rec.ticks.delete(n); renderRec();
+  });
+  const dirty = dirtyChanges().length > 0;
+  $('rSaveBtn').disabled = !dirty || rec.busy;
+  $('rFinish').disabled = !(zero && rec.ticks.size > 0) || rec.busy;
+  $('rAssert').disabled = open > 0;
+  if (open > 0) $('rAssert').checked = false;
+  $('rAssertLabel').textContent = `Add a balance assertion on ${nextDay($('rDate').value)}` + (open > 0 ? ' (needs every transaction ticked)' : '');
+  if (d.ignored_currencies.length) rStatus('Other currencies in this account are not shown: ' + d.ignored_currencies.join(', '), 'muted');
+}
+
+async function saveRec() {
+  const changes = dirtyChanges();
+  if (!changes.length) return true;
+  const { status, body } = await post('/api/reconcile/save', { hash: rec.data.hash, account: $('rAcct').value, changes });
+  if (body.error) { rStatus(body.error, 'bad'); return false; }
+  await loadRec(false);
+  return true;
+}
+
+async function guarded(fn) {
+  rec.busy = true; renderRec();
+  try { await fn(); } finally { rec.busy = false; renderRec(); }
+}
+
+$('rSaveBtn').onclick = () => guarded(async () => { if (await saveRec()) rStatus('✓ Progress saved', 'ok'); });
+$('rFinish').onclick = () => guarded(async () => {
+  if (!(await saveRec())) return;
+  const raw = $('rStmt').value.trim().replace(/[,$\s]/g, '');
+  const statement = isLiability() ? (raw.startsWith('-') ? raw.slice(1) : '-' + raw) : raw;
+  const { body } = await post('/api/reconcile/finish', {
+    hash: rec.data.hash, account: $('rAcct').value, through: $('rDate').value, statement,
+    currency: rec.data.currency, balance_assertion: $('rAssert').checked && !$('rAssert').disabled,
+  });
+  if (body.error) { rStatus(body.error, 'bad'); return; }
+  await loadRec(true);
+  loadRecent();
+  rStatus(`✓ Reconciled ${body.reconciled} posting(s)` + (body.promoted ? `; ${body.promoted} transaction(s) approved (! → *)` : ''), 'ok');
+});
+$('rAcct').onchange = () => { $('rStmt').value = ''; loadRec(true); };
+$('rDate').onchange = () => loadRec(false);
+$('rStmt').oninput = renderRec;
+$('rHide').onchange = renderRec;
+$('rHideTicked').onchange = renderRec;
+$('rPeriod').onchange = applyPeriod;
+$('rMonth').onchange = applyPeriod;
+$('rYear').onchange = applyPeriod;
+
+for (const id of ['date', 'flag', 'narration', 'tags', 'links']) $(id).addEventListener('input', refresh);
+$('payee').addEventListener('input', refresh);
+$('payee').addEventListener('change', prefill);
+$('addPosting').onclick = () => { addPosting(); };
+$('save').onclick = save;
+</script>
+</body>
+</html>

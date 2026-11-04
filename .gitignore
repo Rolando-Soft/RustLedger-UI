@@ -1,0 +1,8 @@
+.backups/
+.*.cache
+__pycache__/
+.DS_Store
+# large imported data and its source export
+ynab.beancount
+*Register.csv
+journal.beancount
