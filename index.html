@@ -46,6 +46,49 @@
   #gTable td:first-child, #gTable td.num { white-space: nowrap; }
   #gTable td.num { padding-left: 18px; }
   #gTable td:nth-child(2) { width: 40%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- phones and narrow windows ---- */
+  @media (max-width: 640px) {
+    body { margin: 1rem auto; padding: 0 16px; }
+    h1 { font-size: 1.2rem; }
+    h2 { margin-top: 1.5rem; }
+    /* 16px inputs stop iOS Safari from zooming in when a field is focused */
+    input, select { font-size: 16px; min-height: 42px; }
+    button { min-height: 42px; padding: 8px 14px; }
+    /* stack every form row, overriding the fixed widths set inline */
+    .row { gap: 12px; margin-bottom: 8px; }
+    .row > div, .row > div[style] { flex: 1 1 100% !important; min-width: 0 !important; width: 100%; }
+    .row > div > span[style] { width: 100%; }
+    .row > div > span[style] select { flex: 1; }
+    .row > div > span[style] input { width: 110px !important; }
+    /* navigation: four equal tabs that wrap if needed */
+    nav { gap: 4px; }
+    nav button { flex: 1 1 auto; padding: 8px 6px; font-size: .9rem; }
+    /* postings: flag + account on the first line, amount + currency + remove below */
+    .posting { grid-template-columns: 64px 1fr 84px 60px 42px; gap: 6px; }
+    .posting .pflag { grid-column: 1; }
+    .posting .acct { grid-column: 2 / span 4; }
+    .posting .amt { grid-column: 1 / span 2; }
+    .posting .cur { grid-column: 3; }
+    .posting button { grid-column: 5; }
+    /* chips and search */
+    .chips input { margin-left: 0; min-width: 0; width: 100%; }
+    .chips button { min-height: 34px; }
+    /* register/reconcile/accounts tables: scroll sideways rather than squeeze */
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+    td { padding: 6px 6px; }
+    #gTable td:nth-child(2) { max-width: 200px; }
+    /* full-width primary actions */
+    #save, #aSave, #rSaveBtn, #rFinish { width: 100%; margin-top: 6px; }
+    #rSaveBtn, #rFinish { margin-bottom: 6px; }
+    #rAdd { float: none; display: block; width: 100%; margin-top: 8px; }
+    #gMore, #addPosting { width: 100%; }
+    /* the edit banner wraps its buttons onto a second line */
+    #editBanner { flex-wrap: wrap; }
+    #editBanner button { min-height: 38px; }
+    .sum { gap: 14px; }
+    .combo { max-height: 50vh; }
+  }
 </style>
 </head>
 <body>
