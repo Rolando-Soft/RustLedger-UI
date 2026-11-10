@@ -1,0 +1,955 @@
+<div class="flex justify-end mb-2 text-[.85rem]"><a href="/reports" class="text-accent no-underline hover:underline">Reports →</a></div>
+<nav class="flex gap-1.5 mb-[1.2rem] max-sm:gap-1">
+  <button id="navReg" class="active <%= ui(:nav) %>">Register</button>
+  <button id="navTxn" class="<%= ui(:nav) %>">Add transaction</button>
+  <button id="navAcct" class="<%= ui(:nav) %>">Accounts</button>
+  <button id="navRec" class="<%= ui(:nav) %>">Reconcile</button>
+</nav>
+
+<section id="tabTxn" hidden>
+<h1 id="txnTitle" class="<%= ui(:h1) %>">Add transaction</h1>
+<div id="editBanner" class="items-center gap-2.5 mb-3.5 px-3 py-2 border border-warn rounded-md max-sm:flex-wrap" style="display:none">
+  <span id="editText" class="flex-1"></span>
+  <button type="button" id="editCancel" class="<%= ui(:banner_btn) %>">Cancel</button>
+  <button type="button" id="editDelete" class="<%= ui(:banner_btn) %> text-bad">Delete</button>
+</div>
+
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Date</label><input type="date" id="date" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell_110) %>"><label class="<%= ui(:label) %>">Flag</label>
+    <select id="flag" class="<%= ui(:field) %> w-full"><option value="!">! pending</option><option value="*">* cleared</option></select></div>
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Payee</label><input id="payee" list="payees" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Narration</label><input id="narration" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+</div>
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Tags (space separated)</label><input id="tags" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Links</label><input id="links" class="<%= ui(:field) %> w-full"></div>
+</div>
+
+<label class="<%= ui(:label) %>">Postings (leave one amount blank to let it balance)</label>
+<div id="pWrap" class="relative"><div id="postings"></div><div id="pList" class="<%= ui(:combo) %> right-auto [&_.opt]:whitespace-normal [&_.opt]:wrap-anywhere [&_.opt]:px-[9px] [&_.opt]:py-[5px] max-sm:text-[16px] max-sm:[&_.opt]:px-3 max-sm:[&_.opt]:py-[11px]" style="display:none"></div></div>
+<button type="button" id="addPosting" class="<%= ui(:btn) %> max-sm:w-full">+ Add posting</button>
+<span id="balance" class="opacity-70 ml-3"></span>
+
+<h2 class="<%= ui(:h2) %>">Preview</h2>
+<pre id="preview" class="<%= ui(:pre) %>"></pre>
+<div id="status" class="<%= ui(:status) %>"></div>
+<button id="save" class="<%= ui(:primary) %> max-sm:w-full max-sm:mt-1.5" disabled>Save</button>
+
+<h2 class="<%= ui(:h2) %>">Recent</h2>
+<table id="recent" class="<%= ui(:table) %>"></table>
+</section>
+
+<section id="tabAcct" hidden>
+<h1 class="<%= ui(:h1) %>">Accounts</h1>
+<div id="chips" class="flex gap-1.5 flex-wrap items-center my-2.5"></div>
+<div id="acctMsg" role="status" class="mt-1.5 mb-2.5 text-[.9rem] whitespace-pre-wrap empty:hidden data-[tone=ok]:text-ok data-[tone=bad]:text-bad data-[tone=muted]:opacity-70"></div>
+<div id="acctEdit" class="border border-line rounded-md px-3 py-2 mt-1.5 mb-3" hidden>
+  <h2 id="eTitle" class="text-base font-bold mt-0 mb-[.83em]">Edit account</h2>
+  <div class="<%= ui(:hint) %> mb-2.5">You can change the open date of any open account. A new name is only allowed while nothing uses the account yet.</div>
+  <div class="<%= ui(:row) %>">
+    <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Opened</label><input type="date" id="eDate" class="<%= ui(:field) %> w-full"></div>
+    <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Type</label>
+      <select id="eType" class="<%= ui(:field) %> w-full"><option>Assets</option><option>Liabilities</option><option>Equity</option><option>Income</option><option>Expenses</option></select></div>
+    <div class="<%= ui(:cell_2) %>"><label class="<%= ui(:label) %>">Name (e.g. Bank:Checking)</label><input id="eName" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+  </div>
+  <pre id="ePreview" class="<%= ui(:pre) %>"></pre>
+  <div id="eStatus" class="<%= ui(:status) %>"></div>
+  <button id="eSave" class="<%= ui(:primary) %> max-sm:w-full max-sm:mt-1.5" disabled>Save changes</button>
+  <button type="button" id="eCancel" class="<%= ui(:btn) %>">Cancel</button>
+</div>
+<table id="acctTable" class="<%= ui(:table) %> [&_tr.acct]:cursor-pointer [&_tr.acct:hover]:bg-tint [&_tr.closed_td]:opacity-50 [&_tr.closed_td]:line-through [&_tr.closed_td.act]:opacity-100 [&_tr.closed_td.act]:no-underline [&_td.act]:text-right [&_td.act]:whitespace-nowrap"></table>
+
+<h2 class="<%= ui(:h2) %>">New account</h2>
+<div class="<%= ui(:hint) %> mb-2.5">Tip: click an account above to start from its name.</div>
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Opened</label><input type="date" id="aDate" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Type</label>
+    <select id="aType" class="<%= ui(:field) %> w-full"><option>Assets</option><option>Liabilities</option><option>Equity</option><option>Income</option><option>Expenses</option></select></div>
+  <div class="<%= ui(:cell_2) %>"><label class="<%= ui(:label) %>">Name (e.g. Bank:Checking)</label><input id="aName" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Currencies (clear for any)</label><input id="aCur" value="USD" class="<%= ui(:field) %> w-full"></div>
+</div>
+<pre id="aPreview" class="<%= ui(:pre) %>"></pre>
+<div id="aStatus" class="<%= ui(:status) %>"></div>
+<button id="aSave" class="<%= ui(:primary) %> max-sm:w-full max-sm:mt-1.5" disabled>Create account</button>
+</section>
+
+<section id="tabReg">
+<h1 class="<%= ui(:h1) %>">Register</h1>
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell) %> relative"><label class="<%= ui(:label) %>">Account</label><input id="gAcct" placeholder="All accounts — type to search" autocomplete="off" class="<%= ui(:field) %> w-full"><div id="gList" class="<%= ui(:combo) %> right-0 [&_.opt]:whitespace-nowrap [&_.opt]:px-[9px] [&_.opt]:py-[5px]" style="display:none"></div></div>
+  <div class="<%= ui(:cell_170) %>"><label class="<%= ui(:label) %>">Period</label>
+    <select id="gPeriod" class="<%= ui(:field) %> w-full"><option value="all">All</option><option value="this">This month</option><option value="last">Last month</option><option value="last3">Last 3 months</option><option value="custom">Custom month…</option></select></div>
+  <div id="gCustom" class="<%= ui(:cell_auto) %>" style="display:none"><label class="<%= ui(:label) %>">Month and year</label>
+    <span class="flex gap-1.5 max-sm:w-full"><select id="gMonth" class="<%= ui(:field) %> w-full max-sm:flex-1"></select><input type="number" id="gYear" class="<%= ui(:field) %> w-[90px] max-sm:w-[110px]"></span></div>
+  <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Status</label>
+    <select id="gStatus" class="<%= ui(:field) %> w-full"><option value="">All</option><option value="pending">Pending !</option><option value="marked">Marked ?</option><option value="cleared">Cleared *</option></select></div>
+  <div class="<%= ui(:cell) %>"><label class="<%= ui(:label) %>">Search</label><input id="gSearch" placeholder="Payee, narration, account, amount" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+</div>
+<div id="gInfo" class="<%= ui(:hint) %> mb-1.5"></div>
+<table id="gTable" class="<%= ui(:table) %> [&_td:first-child]:whitespace-nowrap [&_td.num]:whitespace-nowrap [&_td.num]:pl-[18px] [&_td:nth-child(2)]:w-[40%] [&_td:nth-child(2)]:max-w-0 [&_td:nth-child(2)]:truncate max-sm:[&_td:nth-child(2)]:max-w-[200px]"></table>
+<button type="button" id="gMore" class="<%= ui(:btn) %> mt-2.5 max-sm:w-full" style="display:none">Show more</button>
+</section>
+
+<section id="tabRec" hidden>
+<h1 class="<%= ui(:h1) %>">Reconcile</h1>
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell_2) %>"><label class="<%= ui(:label) %>">Account</label><select id="rAcct" class="<%= ui(:field) %> w-full"></select></div>
+  <div class="<%= ui(:cell_150) %>"><label class="<%= ui(:label) %>">Statement end date</label><input type="date" id="rDate" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell) %>"><label id="rStmtLabel" class="<%= ui(:label) %>">Statement ending balance</label><input id="rStmt" inputmode="decimal" autocomplete="off" class="<%= ui(:field) %> w-full"></div>
+</div>
+<div class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell_190) %>"><label class="<%= ui(:label) %>">Show period</label>
+    <select id="rPeriod" class="<%= ui(:field) %> w-full"><option value="all">All</option><option value="this">This month</option><option value="last">Last month</option><option value="last3">Last 3 months</option><option value="custom">Custom month…</option></select></div>
+  <div id="rCustom" class="<%= ui(:cell_auto) %>" style="display:none"><label class="<%= ui(:label) %>">Month and year</label>
+    <span class="flex gap-1.5 max-sm:w-full"><select id="rMonth" class="<%= ui(:field) %> w-full max-sm:flex-1"></select><input type="number" id="rYear" class="<%= ui(:field) %> w-[90px] max-sm:w-[110px]"></span></div>
+</div>
+<div class="<%= ui(:hint) %>">Tick the transactions that appear on the statement. <b>Save progress</b> writes the ticks to the file as <code>?</code> so you can stop and come back. <b>Finish</b> turns them into <code>*</code> once the difference is zero.</div>
+<div id="rSum" class="flex gap-[22px] flex-wrap my-3.5 tabular-nums max-sm:gap-3.5 [&_div_span]:block [&_div_span]:text-[.75rem] [&_div_span]:opacity-70 [&_b]:text-[1.05rem] [&_.ok]:text-ok [&_.bad]:text-bad"></div>
+<label class="inline-flex items-center gap-1.5 mb-1.5 text-[.8rem]"><input type="checkbox" id="rHide" checked> Hide reconciled <span id="rHidden" class="opacity-70"></span></label>
+<label class="inline-flex items-center gap-1.5 mb-1.5 ml-4 text-[.8rem]"><input type="checkbox" id="rHideTicked"> Hide ticked <span id="rHiddenT" class="opacity-70"></span></label>
+<div id="rOlder" class="<%= ui(:hint) %> mb-1.5"></div>
+<table id="rTable" class="<%= ui(:table) %> [&_tr.pending_td.st]:opacity-60 [&_tr.marked_td.st]:text-warn [&_tr.marked_td.st]:font-semibold [&_tr.cleared]:opacity-60"></table>
+<div class="my-3"><label class="inline text-[.8rem]"><input type="checkbox" id="rAssert" class="mr-1.5"><span id="rAssertLabel">Add a balance assertion</span></label></div>
+<div id="rStatus" class="<%= ui(:status) %>"></div>
+<button id="rSaveBtn" class="<%= ui(:btn) %> max-sm:w-full max-sm:mt-1.5 max-sm:mb-1.5" disabled>Save progress</button>
+<button id="rFinish" class="<%= ui(:primary) %> max-sm:w-full max-sm:mt-1.5 max-sm:mb-1.5" disabled>Finish reconciliation</button>
+<button type="button" id="rAdd" class="<%= ui(:btn) %> float-right max-sm:float-none max-sm:block max-sm:w-full max-sm:mt-2" title="Add a missing transaction, then return here">+ Add transaction</button>
+</section>
+
+<datalist id="payees"></datalist>
+<datalist id="accounts"></datalist>
+
+<script>
+const $ = id => document.getElementById(id);
+// Tailwind class lists shared with the view (app/helpers/ui_helper.rb), and the colour of a status line.
+const UI = JSON.parse($('ui-classes').textContent);
+const tone = (el, t) => { el.dataset.tone = t || ''; };
+let editing = null, delArmed = false, payees = {}, timer = 0, valid = false, allAccounts = [], typeFilter = 'All', textFilter = '', aTimer = 0;
+const TYPES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
+
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+function addPosting(p = {}) {
+  const el = document.createElement('div');
+  el.className = 'posting ' + UI.posting_row;
+  el.dataset.orig = p.orig ?? '';
+  const fl = p.flag || '';
+  el.innerHTML = `<select class="pflag ${UI.field} max-sm:col-start-1" title="Posting flag: blank, ? marked for reconciliation, * reconciled"><option value="">–</option>${fl === '!' ? '<option value="!">!</option>' : ''}<option value="?">?</option><option value="*">*</option></select>
+    <input class="acct ${UI.field} max-sm:col-[2/span_4]" placeholder="Account" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <input class="amt ${UI.field} max-sm:col-[1/span_2]" placeholder="Amount" inputmode="decimal" autocomplete="off">
+    <input class="cur ${UI.field} max-sm:col-start-3" value="USD">
+    <button type="button" class="${UI.btn} max-sm:col-start-5" title="Remove">×</button>`;
+  el.querySelector('.pflag').value = fl;
+  el.querySelector('.acct').value = p.account || '';
+  el.querySelector('.amt').value = p.amount || '';
+  el.querySelector('.cur').value = p.currency || 'USD';
+  el.querySelector('button').onclick = () => { if ($('postings').children.length > 2) { if (el.contains(pc.input)) pcClose(); el.remove(); refresh(); } };
+  el.addEventListener('input', refresh);
+  $('postings').append(el);
+}
+
+function collect() {
+  return {
+    date: $('date').value, flag: $('flag').value, payee: $('payee').value, narration: $('narration').value,
+    tags: $('tags').value, links: $('links').value,
+    postings: [...$('postings').children].map(r => ({
+      pflag: r.querySelector('.pflag').value, account: r.querySelector('.acct').value, amount: r.querySelector('.amt').value, currency: r.querySelector('.cur').value,
+      orig: r.dataset.orig === '' ? null : +r.dataset.orig,
+    })),
+    ...(editing ? { hash: editing.hash, lineno: editing.lineno } : {}),
+  };
+}
+
+function updateBalance(d) {
+  const sums = {}; let blank = 0;
+  for (const p of d.postings) {
+    if (!p.account.trim()) continue;
+    if (!p.amount.trim()) { blank++; continue; }
+    const n = parseFloat(p.amount);
+    if (!isNaN(n)) sums[p.currency || 'USD'] = (sums[p.currency || 'USD'] || 0) + n;
+  }
+  const parts = Object.entries(sums).filter(([, v]) => Math.abs(v) > 1e-9);
+  $('balance').textContent = !parts.length ? '' : blank
+    ? 'blank posting will be ' + parts.map(([c, v]) => `${(-v).toFixed(2)} ${c}`).join(', ')
+    : 'unbalanced by ' + parts.map(([c, v]) => `${v.toFixed(2)} ${c}`).join(', ');
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return { status: r.status, body: await r.json() };
+}
+
+function refresh() {
+  clearTimeout(timer);
+  const d = collect();
+  updateBalance(d);
+  timer = setTimeout(async () => {
+    const { body } = await post(editing ? '/api/transactions/edit/validate' : '/api/validate', d);
+    valid = !!body.ok;
+    $('preview').textContent = body.text || '';
+    tone($('status'), valid ? 'ok' : (body.error ? 'muted' : 'bad'));
+    $('status').textContent = valid ? '✓ Valid' : (body.error || body.message || '');
+    $('save').disabled = !valid;
+  }, 250);
+}
+
+async function save() {
+  const { body } = await post(editing ? '/api/transactions/edit' : '/api/transactions', collect());
+  if (body.error) { tone($('status'), 'bad'); $('status').textContent = body.error; return; }
+  const wasEdit = !!editing;
+  endEdit();
+  loadRecent();
+  reset();
+  leaveEdit();
+  tone($('status'), 'ok');
+  $('status').textContent = (wasEdit ? '✓ Changes saved' : '✓ Saved') + ' (backup: ' + body.backup + ')';
+}
+
+function reset() {
+  for (const id of ['payee', 'narration', 'tags', 'links']) $(id).value = '';
+  $('flag').value = '!';
+  $('postings').innerHTML = '';
+  addPosting(); addPosting();
+  $('payee').focus();
+  valid = false; $('save').disabled = true;
+  $('preview').textContent = '';
+}
+
+function prefill() {
+  if (editing) return;
+  const t = payees[$('payee').value];
+  if (!t) return;
+  $('narration').value = t.narration;
+  $('postings').innerHTML = '';
+  t.postings.forEach(addPosting);
+  refresh();
+}
+
+async function loadRecent() {
+  const rows = await (await fetch('/api/recent')).json();
+  $('recent').innerHTML = rows.map(t => `<tr><td>${t.date} ${t.flag}</td><td>${descCell(t)}</td>
+    <td>${t.postings.map(p => esc(p.account)).join('<br>')}</td>
+    <td class="num">${t.postings.map(p => esc(p.amount + ' ' + p.currency)).join('<br>')}</td>
+</tr>`).join('');
+  wireEditLinks($('recent'));
+}
+// Description cell: the payee (or narration) is a link that opens the transaction for editing.
+function descCell(t) {
+  const title = esc(t.payee || t.narration || '(no description)'), sub = t.payee ? `<br><span class="muted" title="${esc(t.narration)}">${esc(t.narration)}</span>` : '';
+  return (t.lineno ? `<a href="#" class="lnk" data-edit="${t.lineno}" title="${title}">${title}</a>` : title) + sub;
+}
+function wireEditLinks(root) {
+  root.querySelectorAll('a[data-edit]').forEach(a => a.onclick = e => { e.preventDefault(); startEdit(+a.dataset.edit); });
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+(async () => {
+  $('date').value = today();
+  addPosting(); addPosting();
+  const [accts, pay] = await Promise.all([fetch('/api/accounts').then(r => r.json()), fetch('/api/payees').then(r => r.json())]);
+  payees = pay;
+  setAccounts(accts);
+  renderAccounts();
+  $('payees').innerHTML = Object.keys(pay).map(p => `<option value="${esc(p)}">`).join('');
+  loadRecent();
+  refresh();
+  initReg();
+})();
+
+// ---- accounts tab ----
+function acctRank(a) { return TYPES.indexOf(a.account.split(':')[0]); }
+// The one account order used everywhere: by type (Assets, Liabilities, Equity, Income, Expenses), then name.
+function byAccount(x, y) { return acctRank(x) - acctRank(y) || x.account.localeCompare(y.account); }
+function setAccounts(list) { allAccounts = list.sort(byAccount); }
+
+function renderAccounts() {
+  $('accounts').innerHTML = allAccounts.filter(a => !a.closed).map(a => `<option value="${esc(a.account)}">`).join('');
+  const counts = Object.fromEntries(TYPES.map(t => [t, allAccounts.filter(a => a.account.startsWith(t + ':')).length]));
+  $('chips').innerHTML = ['All', ...TYPES].map(t =>
+    `<button data-t="${t}" class="${UI.chip} ${t === typeFilter ? 'active' : ''}">${t} ${t === 'All' ? allAccounts.length : counts[t]}</button>`).join('')
+    + '<input id="aSearch" class="' + UI.chip_search + '" placeholder="Search accounts" value="' + esc(textFilter) + '">';
+  $('chips').querySelectorAll('button').forEach(b => b.onclick = () => { typeFilter = b.dataset.t; renderAccounts(); });
+  $('aSearch').oninput = e => { textFilter = e.target.value; renderAccounts(); $('aSearch').focus(); $('aSearch').setSelectionRange(textFilter.length, textFilter.length); };
+  const q = textFilter.toLowerCase();
+  const rows = allAccounts
+    .filter(a => (typeFilter === 'All' || a.account.startsWith(typeFilter + ':')) && a.account.toLowerCase().includes(q))
+    .sort(byAccount);
+  acctArmed = null;  // re-rendering always disarms a pending delete
+  $('acctTable').innerHTML = '<tr class="muted"><td>Account</td><td>Opened</td><td>Currencies</td><td class="num">Balance</td><td></td></tr>' + rows.map(a =>
+    `<tr class="acct ${a.closed ? 'closed' : ''}" data-a="${esc(a.account)}"><td>${esc(a.account)}</td><td>${esc(a.open)}${a.closed ? ' – ' + esc(a.closed) : ''}</td>
+     <td>${esc(a.currencies.join(', '))}</td>
+     <td class="num">${a.balance.map(b => esc(b.amount + ' ' + b.currency)).join('<br>')}</td>
+     <td class="act">${a.closed ? '' : '<button type="button" class="aedit ' + UI.pill + '" title="Change the open date or the name">Edit</button> '}<button type="button" class="adel ${UI.pill}" title="Delete this account (only if nothing uses it)">Delete</button></td></tr>`).join('')
+    || '<tr><td class="muted">No matching accounts</td></tr>';
+  $('acctTable').querySelectorAll('tr.acct').forEach(r => r.onclick = () => {
+    const [type, ...rest] = r.dataset.a.split(':');
+    $('aType').value = type; $('aName').value = rest.join(':') + ':'; $('aName').focus(); refreshAcct();
+  });
+  $('acctTable').querySelectorAll('button.adel').forEach(b => b.onclick = e => {
+    e.stopPropagation();  // don't also fill the new-account form
+    deleteAcct(b, b.closest('tr').dataset.a);
+  });
+  $('acctTable').querySelectorAll('button.aedit').forEach(b => b.onclick = e => {
+    e.stopPropagation();  // don't also fill the new-account form
+    startAcctEdit(b.closest('tr').dataset.a);
+  });
+}
+
+// ---- deleting / closing an account ----
+// Two clicks, like deleting a transaction: the first asks the server whether the account is unused,
+// the second deletes it. If it is in use, explain why and offer to close it instead.
+let acctArmed = null, acctBusy = false;
+
+function setAcctMsg(text, cls) { tone($('acctMsg'), cls || ''); $('acctMsg').textContent = text || ''; }
+
+async function reloadAccounts() {
+  setAccounts(await (await fetch('/api/accounts')).json());
+  renderAccounts();
+  // the account being edited was deleted or closed meanwhile: close the edit panel
+  if (acctEdit && !allAccounts.some(a => a.account === acctEdit.account && !a.closed)) endAcctEdit();
+}
+
+async function deleteAcct(btn, account) {
+  if (acctBusy) return;
+  acctBusy = true;
+  try {
+    if (acctArmed && acctArmed.account === account) {
+      const { body } = await post('/api/accounts/delete', { hash: acctArmed.hash, account });
+      if (body.error) {
+        await reloadAccounts();
+        setAcctMsg(body.error, 'bad');  // 409: the list was reloaded, try again
+        return;
+      }
+      await reloadAccounts();
+      setAcctMsg(`✓ Deleted ${account} (backup: ${body.backup})`, 'ok');
+      return;
+    }
+    // A different button was armed: put it back first.
+    $('acctTable').querySelectorAll('button.adel.armed').forEach(x => { x.classList.remove('armed'); x.textContent = 'Delete'; });
+    acctArmed = null;
+    setAcctMsg('Checking ' + account + '…', 'muted');
+    const { body } = await post('/api/accounts/delete/validate', { account });
+    if (body.error) { setAcctMsg(body.error, 'bad'); return; }
+    if (body.blocked) { showBlocked(body); return; }
+    if (!body.ok) { setAcctMsg(`${account} can't be deleted: rledger would report an error:\n${body.message}`, 'bad'); return; }
+    acctArmed = { account, hash: body.hash };
+    btn.classList.add('armed'); btn.textContent = 'Click again to delete';
+    setAcctMsg(`Will remove this from the ledger:\n${body.removes}` + (body.warning ? `\nNote: ${body.warning}.` : ''), 'muted');
+  } finally {
+    acctBusy = false;
+  }
+}
+
+// Explain why an account can't be deleted; offer "Close account" when it has a zero balance.
+function showBlocked(v) {
+  setAcctMsg(v.message, 'bad');
+  if (v.closed) return;
+  const box = document.createElement('div');
+  box.className = UI.close_box;
+  if (!v.can_close) {
+    box.textContent = 'You could close it instead once its balance is zero (now ' + v.balance.map(b => b.amount + ' ' + b.currency).join(', ') + ').';
+    $('acctMsg').append(box);
+    return;
+  }
+  const label = document.createElement('span');
+  label.textContent = 'Close it instead (keeps its history, hides it from pickers) on';
+  const date = document.createElement('input');
+  date.type = 'date'; date.className = UI.field_small;
+  const min = v.last_activity && v.last_activity > v.opened ? v.last_activity : v.opened;
+  date.min = min; date.value = today() < min ? min : today();
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = UI.pill; btn.textContent = 'Close account';
+  let armed = false;
+  date.oninput = () => { armed = false; btn.textContent = 'Close account'; };
+  btn.onclick = async () => {
+    if (!armed) { armed = true; btn.textContent = 'Click again to close'; return; }
+    btn.disabled = true;
+    const { body } = await post('/api/accounts/close', { hash: v.hash, account: v.account, date: date.value });
+    if (body.error) { await reloadAccounts(); setAcctMsg(body.error, 'bad'); return; }
+    await reloadAccounts();
+    setAcctMsg(`✓ Closed ${v.account}: added "${body.text.trim()}" (backup: ${body.backup})`, 'ok');
+  };
+  box.append(label, date, btn);
+  $('acctMsg').append(box);
+}
+
+// ---- editing an account (open date and name) ----
+// Only the open line changes. The server refuses a new name when anything else mentions the account.
+let acctEdit = null, eTimer = 0, eSeq = 0;  // acctEdit = { account, hash }
+
+function startAcctEdit(account) {
+  const a = allAccounts.find(x => x.account === account);
+  if (!a) return;
+  setAcctMsg('');
+  acctEdit = { account, hash: null };
+  const [type, ...rest] = account.split(':');
+  $('eTitle').textContent = 'Edit ' + account;
+  $('eDate').value = a.open; $('eType').value = type; $('eName').value = rest.join(':');
+  $('ePreview').textContent = '';
+  tone($('eStatus'), 'muted'); $('eStatus').textContent = 'Change the date or the name, then save.';
+  $('eSave').disabled = true;
+  $('acctEdit').hidden = false;
+  $('acctEdit').scrollIntoView({ block: 'nearest' });
+  $('eDate').focus();
+}
+
+function endAcctEdit() { clearTimeout(eTimer); eSeq++; acctEdit = null; $('acctEdit').hidden = true; }
+
+function collectAcctEdit() {
+  return { account: acctEdit.account, date: $('eDate').value, new_account: $('eType').value + ':' + $('eName').value.trim(), hash: acctEdit.hash };
+}
+
+function refreshAcctEdit() {
+  if (!acctEdit) return;
+  clearTimeout(eTimer);
+  eSeq++;  // any check still in flight is now stale, even if it returns inside the 250 ms wait
+  $('eSave').disabled = true;
+  eTimer = setTimeout(async () => {
+    const seq = ++eSeq;
+    const { body } = await post('/api/accounts/edit/validate', collectAcctEdit());
+    if (seq !== eSeq || !acctEdit) return;  // a newer check started, or the panel was closed
+    acctEdit.hash = body.hash || null;
+    $('ePreview').textContent = body.text ? `Before: ${body.old}\nAfter:  ${body.text}` : '';
+    tone($('eStatus'), body.ok ? 'ok' : 'bad');
+    $('eStatus').textContent = body.ok ? '✓ Valid' + (body.warning ? `\nNote: ${body.warning}.` : '') : (body.error || body.message || '');
+    $('eSave').disabled = !body.ok;
+  }, 250);
+}
+
+async function saveAcctEdit() {
+  if (!acctEdit || !acctEdit.hash) return;
+  $('eSave').disabled = true;
+  const { status, body } = await post('/api/accounts/edit', collectAcctEdit());
+  if (body.error) {
+    tone($('eStatus'), 'bad'); $('eStatus').textContent = body.error;
+    if (status === 409) { setAcctMsg(body.error, 'bad'); await reloadAccounts(); refreshAcctEdit(); }
+    return;
+  }
+  endAcctEdit();
+  await reloadAccounts();
+  setAcctMsg(`✓ Changed "${body.old}" to "${body.text}" (backup: ${body.backup})`, 'ok');
+}
+
+function collectAcct() {
+  return { date: $('aDate').value, account: $('aType').value + ':' + $('aName').value.trim(), currencies: $('aCur').value };
+}
+
+function refreshAcct() {
+  clearTimeout(aTimer);
+  aTimer = setTimeout(async () => {
+    const { body } = await post('/api/accounts/validate', collectAcct());
+    $('aPreview').textContent = body.text || '';
+    tone($('aStatus'), body.ok ? 'ok' : (body.error ? 'muted' : 'bad'));
+    $('aStatus').textContent = body.ok ? '✓ Valid' : (body.error || body.message || '');
+    $('aSave').disabled = !body.ok;
+  }, 250);
+}
+
+async function saveAcct() {
+  const { body } = await post('/api/accounts', collectAcct());
+  if (body.error) { tone($('aStatus'), 'bad'); $('aStatus').textContent = body.error; return; }
+  setAccounts(await (await fetch('/api/accounts')).json());
+  renderAccounts();
+  $('aName').value = ''; $('aCur').value = 'USD'; $('aPreview').textContent = ''; $('aSave').disabled = true;
+  tone($('aStatus'), 'ok'); $('aStatus').textContent = '✓ Created (backup: ' + body.backup + ')';
+}
+
+let curTab = 'reg', editFrom = null;
+function showTab(name) {
+  curTab = name;
+  for (const [n, id] of [['txn', 'Txn'], ['reg', 'Reg'], ['acct', 'Acct'], ['rec', 'Rec']]) {
+    $('tab' + id).hidden = n !== name;
+    $('nav' + id).classList.toggle('active', n === name);
+  }
+}
+$('navTxn').onclick = () => showTab('txn');
+$('navReg').onclick = () => { showTab('reg'); initReg(); };
+$('navAcct').onclick = () => { showTab('acct'); $('aDate').value ||= today(); };
+$('navRec').onclick = () => { showTab('rec'); initRec(); };
+for (const id of ['aDate', 'aType', 'aName', 'aCur']) $(id).addEventListener('input', refreshAcct);
+$('aSave').onclick = saveAcct;
+for (const id of ['eDate', 'eType', 'eName']) $(id).addEventListener('input', refreshAcctEdit);
+$('eSave').onclick = saveAcctEdit;
+$('eCancel').onclick = endAcctEdit;
+
+// ---- editing an existing transaction ----
+function endEdit() {
+  editing = null; delArmed = false;
+  $('editBanner').style.display = 'none';
+  $('txnTitle').textContent = 'Add transaction';
+  $('save').textContent = 'Save';
+  $('editDelete').textContent = 'Delete';
+}
+
+async function startEdit(lineno) {
+  const r = await fetch('/api/transaction?lineno=' + lineno);
+  const t = await r.json();
+  editFrom = curTab;
+  showTab('txn');
+  if (t.error || !t.editable) {
+    tone($('status'), 'bad');
+    $('status').textContent = t.error || ("This transaction can't be edited here: " + t.reason + '. Edit it in your editor.');
+    return;
+  }
+  editing = { lineno, hash: t.hash };
+  $('date').value = t.date; $('flag').value = t.flag; $('payee').value = t.payee; $('narration').value = t.narration;
+  $('tags').value = t.tags; $('links').value = t.links;
+  pcClose();  // the list may be open (e.g. left open after the keyboard was hidden): it must not point at a removed box
+  $('postings').innerHTML = '';
+  t.postings.forEach(p => addPosting({ ...p, currency: p.currency || 'USD' }));
+  while ($('postings').children.length < 2) addPosting();
+  $('txnTitle').textContent = 'Edit transaction';
+  $('editText').textContent = `Editing the transaction from ${t.date}. Use the box at the left of each posting to change its flag (? marked, * reconciled).`;
+  $('editBanner').style.display = 'flex';
+  $('editDelete').style.display = '';
+  $('save').textContent = 'Save changes';
+  window.scrollTo(0, 0);
+  refresh();
+}
+
+function addFromRec() {
+  endEdit(); reset();
+  editFrom = 'rec';
+  showTab('txn');
+  $('date').value = $('rDate').value || today();
+  const first = $('postings').children[0];
+  first.querySelector('.acct').value = $('rAcct').value;
+  $('editText').textContent = 'Adding a transaction from Reconcile. You will return there after saving; your ticks are kept.';
+  $('editDelete').style.display = 'none';
+  $('editBanner').style.display = 'flex';
+  $('status').textContent = '';
+  window.scrollTo(0, 0);
+  $('payee').focus();
+  refresh();
+}
+$('rAdd').onclick = addFromRec;
+
+function leaveEdit() {
+  const back = editFrom; editFrom = null;
+  if (back && back !== 'txn') showTab(back);
+  if (back === 'rec') loadRec(false);
+  if (!$('tabReg').hidden || back === 'reg') loadRegister();
+}
+$('editCancel').onclick = () => { endEdit(); reset(); $('status').textContent = ''; leaveEdit(); };
+$('editDelete').onclick = async () => {
+  if (!delArmed) { delArmed = true; $('editDelete').textContent = 'Click again to delete'; return; }
+  const { body } = await post('/api/transactions/delete', { hash: editing.hash, lineno: editing.lineno });
+  if (body.error) { tone($('status'), 'bad'); $('status').textContent = body.error; return; }
+  endEdit(); loadRecent(); reset(); leaveEdit();
+  tone($('status'), 'ok'); $('status').textContent = '✓ Deleted (backup: ' + body.backup + ')';
+};
+
+// ---- register tab ----
+const reg = { txns: [], limit: 200, acct: '' };
+
+async function loadRegister() {
+  reg.txns = await (await fetch('/api/register')).json();
+  renderRegister();
+}
+
+function initReg() {
+  fillMonths('gMonth', 'gYear');
+  $('gAcct').value = reg.acct;
+  reg.limit = 200;
+  loadRegister();
+}
+
+// Status of a transaction, looking only at the chosen account's postings when one is chosen.
+function regStatus(t, acct) {
+  const ps = acct ? t.postings.filter(p => p.account === acct) : t.postings;
+  if (ps.some(p => p.state === 'marked')) return 'marked';
+  return ps.every(p => p.state === 'cleared') ? 'cleared' : 'pending';
+}
+
+function renderRegister() {
+  const acct = reg.acct, q = $('gSearch').value.trim().toLowerCase(), st = $('gStatus').value;
+  const { from, end } = periodRange($('gPeriod').value, $('gMonth').value, $('gYear').value);
+  $('gCustom').style.display = $('gPeriod').value === 'custom' ? '' : 'none';
+
+  // Running balance over the whole history, so filtering never changes it.
+  const after = new Map(), bal = {};
+  if (acct) for (const t of reg.txns) {
+    for (const p of t.postings.filter(p => p.account === acct)) bal[p.currency] = Math.round(((bal[p.currency] || 0) + num(p.amount)) * 1e6) / 1e6;
+    const cur = (t.postings.find(p => p.account === acct) || {}).currency;
+    if (cur) after.set(t, { cur, v: bal[cur] });
+  }
+
+  const rows = reg.txns.filter(t => {
+    if (acct && !t.postings.some(p => p.account === acct)) return false;
+    if (from && t.date < from) return false;
+    if (end && t.date > end) return false;
+    if (st && regStatus(t, acct) !== st) return false;
+    if (q && ![t.payee, t.narration, ...t.postings.map(p => p.account + ' ' + p.amount)].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  }).reverse();
+
+  const byOrder = byAccount;  // postings within a row follow the account order too
+  const mark = p => (p.flag ? `<span class="muted">${esc(p.flag)}</span> ` : '');
+  const shown = rows.slice(0, reg.limit);
+  $('gTable').innerHTML = `<tr class="muted"><td>Date</td><td>Description</td><td>${acct ? 'Other account' : 'Accounts'}</td><td class="num">Amount</td>${acct ? '<td class="num">Balance</td>' : ''}</tr>`
+    + shown.map(t => {
+      let accts, amts;
+      if (acct) {
+        const mine = t.postings.filter(p => p.account === acct);
+        accts = t.postings.filter(p => p.account !== acct).sort(byOrder).map(p => esc(p.account)).join('<br>');
+        amts = mine.map(p => mark(p) + esc(p.amount + ' ' + p.currency)).join('<br>');
+      } else {
+        const sorted = t.postings.slice().sort(byOrder);
+        accts = sorted.map(p => mark(p) + esc(p.account)).join('<br>');
+        amts = sorted.map(p => esc(p.amount + ' ' + p.currency)).join('<br>');
+      }
+      const b = after.get(t);
+      return `<tr><td>${t.date} ${esc(t.flag)}</td><td>${descCell(t)}</td><td>${accts}</td><td class="num">${amts}</td>${acct ? `<td class="num">${b ? money(b.v) + ' ' + esc(b.cur) : ''}</td>` : ''}</tr>`;
+    }).join('') || '<tr><td class="muted">No transactions match</td></tr>';
+  wireEditLinks($('gTable'));
+  $('gMore').style.display = rows.length > shown.length ? '' : 'none';
+  $('gMore').textContent = `Show more (${rows.length - shown.length} left)`;
+  $('gInfo').textContent = `${rows.length} transaction${rows.length === 1 ? '' : 's'}` + (acct && bal && Object.keys(bal).length ? ' · current balance ' + Object.entries(bal).map(([c, v]) => money(v) + ' ' + c).join(', ') : '');
+}
+
+for (const id of ['gPeriod', 'gMonth', 'gYear', 'gStatus']) $(id).addEventListener('change', () => { reg.limit = 200; renderRegister(); });
+$('gSearch').addEventListener('input', () => { reg.limit = 200; renderRegister(); });
+$('gMore').onclick = () => { reg.limit += 200; renderRegister(); };
+
+// ---- fuzzy account picker (register) ----
+// Returns { score, idx } (idx = matched character positions) or null when q doesn't match s.
+function fuzzy(q, s) {
+  q = q.toLowerCase().replace(/\s+/g, '');
+  if (!q) return { score: 0, idx: [] };
+  const t = s.toLowerCase(), at = t.indexOf(q);
+  if (at >= 0) {  // an exact substring beats any scattered match
+    return { score: 1000 - at - (t.length - q.length) * 0.1 + (at === 0 || t[at - 1] === ':' ? 50 : 0), idx: [...q].map((_, i) => at + i) };
+  }
+  const idx = []; let j = 0, score = 0, prev = -2;
+  for (let i = 0; i < t.length && j < q.length; i++) {
+    if (t[i] !== q[j]) continue;
+    score += (i === prev + 1 ? 5 : 1) + (i === 0 || t[i - 1] === ':' ? 3 : 0);
+    idx.push(i); prev = i; j++;
+  }
+  return j === q.length ? { score: score - t.length * 0.1, idx } : null;
+}
+
+const combo = { typing: false, active: 0, shown: [] };
+const highlight = (text, idx) => { const on = new Set(idx); return [...text].map((c, i) => on.has(i) ? `<b>${esc(c)}</b>` : esc(c)).join(''); };
+
+function comboRender() {
+  const q = combo.typing ? $('gAcct').value.trim() : '';
+  let shown;
+  if (q) {
+    shown = allAccounts.map(a => ({ account: a.account, m: fuzzy(q, a.account) })).filter(x => x.m)
+      .sort((x, y) => y.m.score - x.m.score);  // stable sort: ties keep the account order
+  } else {
+    shown = [{ account: '', label: 'All accounts', m: { idx: [] } }, ...allAccounts.map(a => ({ account: a.account, m: { idx: [] } }))];
+  }
+  combo.shown = shown;
+  combo.active = Math.min(combo.active, Math.max(shown.length - 1, 0));
+  $('gList').innerHTML = shown.length
+    ? shown.map((x, i) => `<div class="opt ${i === combo.active ? 'active' : ''}" data-i="${i}">${x.label ? esc(x.label) : highlight(x.account, x.m.idx)}</div>`).join('')
+    : '<div class="none">No matching accounts</div>';
+  $('gList').style.display = '';
+  $('gList').querySelector('.opt.active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function comboClose() { $('gList').style.display = 'none'; combo.typing = false; $('gAcct').value = reg.acct; }
+
+function comboPick(account) {
+  reg.acct = account; reg.limit = 200;
+  comboClose();
+  renderRegister();
+}
+
+$('gAcct').addEventListener('focus', () => { combo.typing = false; combo.active = 0; $('gAcct').select(); comboRender(); });
+$('gAcct').addEventListener('input', () => { combo.typing = true; combo.active = 0; comboRender(); });
+$('gAcct').addEventListener('blur', () => {
+  if (!$('gAcct').value.trim() && reg.acct) comboPick('');  // clearing the box means "all accounts"
+  else comboClose();
+});
+$('gAcct').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if ($('gList').style.display === 'none') return comboRender();
+    const n = combo.shown.length; if (!n) return;
+    combo.active = (combo.active + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; comboRender();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const x = combo.shown[combo.active]; if (x) comboPick(x.account);
+    $('gAcct').blur();
+  } else if (e.key === 'Escape') {
+    comboClose(); $('gAcct').blur();
+  }
+});
+// mousedown (not click) so the pick lands before the input loses focus
+$('gList').addEventListener('mousedown', e => {
+  e.preventDefault();
+  const el = e.target.closest('.opt'); if (!el) return;
+  comboPick(combo.shown[+el.dataset.i].account);
+  $('gAcct').blur();
+});
+
+// ---- fuzzy account picker (posting account boxes on the Add/Edit form) ----
+// One shared list (#pList) shown under whichever posting account box has focus. Open accounts only, in the
+// account order. Replaces <datalist id="accounts">, which shows no suggestions in some iOS browsers (Arc Search).
+const pc = { input: null, typing: false, active: 0, shown: [] };
+const pcOpenAccounts = () => allAccounts.filter(a => !a.closed);
+
+function pcRender() {
+  const inp = pc.input, list = $('pList');
+  if (!inp || !inp.isConnected) return pcClose();
+  const q = pc.typing ? inp.value.trim() : '';
+  const shown = q
+    ? pcOpenAccounts().map(a => ({ account: a.account, m: fuzzy(q, a.account) })).filter(x => x.m)
+        .sort((x, y) => y.m.score - x.m.score)  // stable sort: ties keep the account order
+    : pcOpenAccounts().map(a => ({ account: a.account, m: { idx: [] } }));
+  pc.shown = shown;
+  pc.active = Math.min(pc.active, Math.max(shown.length - 1, 0));
+  list.innerHTML = shown.length
+    ? shown.map((x, i) => `<div class="opt ${i === pc.active ? 'active' : ''}" data-i="${i}">${highlight(x.account, x.m.idx)}</div>`).join('')
+    : '<div class="none">No matching open accounts</div>';
+  // place the list right under the focused box (#pWrap is the positioned parent)
+  const w = $('pWrap').getBoundingClientRect(), r = inp.getBoundingClientRect();
+  list.style.left = (r.left - w.left) + 'px';
+  list.style.top = (r.bottom - w.top) + 'px';
+  list.style.width = r.width + 'px';
+  list.style.display = '';
+  // keep the highlighted option visible by scrolling the list only, never the page
+  const a = list.querySelector('.opt.active');
+  if (a && a.offsetTop < list.scrollTop) list.scrollTop = a.offsetTop;
+  else if (a && a.offsetTop + a.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = a.offsetTop + a.offsetHeight - list.clientHeight;
+}
+
+function pcClose() { $('pList').style.display = 'none'; pc.input = null; pc.typing = false; }
+
+function pcOpen(inp) {
+  pc.input = inp; pc.typing = false;
+  pc.active = Math.max(pcOpenAccounts().findIndex(a => a.account === inp.value.trim()), 0);  // highlight the current account
+  pcRender();
+}
+
+function pcPick(account) {
+  const inp = pc.input;
+  if (!inp || !inp.isConnected) return pcClose();
+  inp.value = account;
+  pcClose();
+  refresh();  // setting .value fires no 'input' event, so update the balance and preview here
+  inp.closest('.posting').querySelector('.amt').focus();  // next field: the amount
+}
+
+// Event delegation on #postings, so rows added later (addPosting, prefill, edit) work too.
+$('postings').addEventListener('focusin', e => {
+  if (!e.target.matches('input.acct')) return;
+  // the box whose list stayed open after the phone keyboard was hidden: keep its filter and highlight
+  if (e.target === pc.input && $('pList').style.display !== 'none') return pcRender();
+  pcOpen(e.target);
+});
+// No focusout handler: hiding the phone keyboard only blurs the box (focus goes nowhere) and the list stays open.
+// It closes on a pick, Escape, focus moving to another field (document focusin below), or a tap/click
+// elsewhere on the page (document mousedown/touchend below).
+$('postings').addEventListener('input', e => { if (e.target === pc.input) { pc.typing = true; pc.active = 0; pcRender(); } });
+$('postings').addEventListener('keydown', e => {
+  if (e.target !== pc.input) return;
+  const open = $('pList').style.display !== 'none';
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!open) return pcRender();
+    const n = pc.shown.length; if (!n) return;
+    pc.active = (pc.active + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; pcRender();
+  } else if (e.key === 'Enter') {
+    if (!open) return;
+    e.preventDefault();
+    const x = pc.shown[pc.active]; if (x) pcPick(x.account);
+  } else if (e.key === 'Escape') {
+    if (open) { e.preventDefault(); $('pList').style.display = 'none'; }
+  }
+});
+// focus moving anywhere else (another field, a reset form) closes the list
+document.addEventListener('focusin', e => { if (pc.input && e.target !== pc.input) pcClose(); });
+// mousedown: keep the focus in the box (desktop); click: pick (works for taps on phones too).
+// A list left open can cover another row's account box. A tap or click on that spot only closes the list:
+// nothing is picked and focus does not move (mousedown above), so a second tap on the box opens the list there.
+$('pList').addEventListener('mousedown', e => e.preventDefault());
+$('pList').addEventListener('click', e => {
+  const over = b => { const r = b.getBoundingClientRect(); return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+  if ([...document.querySelectorAll('#postings input.acct')].some(b => b !== pc.input && over(b))) return pcClose();
+  const el = e.target.closest('.opt'); if (!el) return;
+  const x = pc.shown[+el.dataset.i]; if (x) pcPick(x.account);
+});
+// rotating the phone or resizing the window moves the box: re-place the open list under it.
+// pcRender keeps pc.typing and pc.active; a list hidden with Escape stays hidden.
+window.addEventListener('resize', () => { if (pc.input && $('pList').style.display !== 'none') pcRender(); });
+// A tap or click anywhere except the list or an account box closes the list. Taps on an account box are left to
+// focusin (same box: keep the list; another box: move it there); taps on the list are left to its click handler.
+// Mouse: on mousedown. Touch: on touchend, and only for a tap (finger moved 10 px or less), so scrolling the page
+// keeps the list open. The row's remove button is not exempt: rows shift when one is removed.
+const pcKeepsOpen = t => $('pList').contains(t) || (t instanceof Element && t.matches('input.acct'));
+let pcTouch = null;  // where a one-finger touch started; cleared once the finger moves (a scroll, not a tap)
+document.addEventListener('mousedown', e => { if (pc.input && !pcKeepsOpen(e.target)) pcClose(); });
+document.addEventListener('touchstart', e => { const t = e.touches[0]; pcTouch = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+document.addEventListener('touchmove', e => { const t = e.touches[0]; if (pcTouch && t && Math.hypot(t.clientX - pcTouch.x, t.clientY - pcTouch.y) > 10) pcTouch = null; }, { passive: true });
+document.addEventListener('touchend', e => { if (pcTouch && pc.input && !pcKeepsOpen(e.target)) pcClose(); pcTouch = null; });
+
+// ---- reconcile tab ----
+const rec = { data: null, ticks: new Set(), busy: false };
+const isLiability = () => $('rAcct').value.startsWith('Liabilities:');
+const num = v => parseFloat(String(v).replace(/[,$\s]/g, ''));
+const money = v => (Math.round(v * 100) / 100).toFixed(2);
+const nextDay = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+const serverMarked = () => new Set((rec.data?.rows || []).filter(r => r.state === 'marked').map(r => r.lineno));
+const dirtyChanges = () => {
+  const was = serverMarked(), out = [];
+  for (const r of rec.data?.rows || []) {
+    if (r.locked) continue;
+    const now = rec.ticks.has(r.lineno), before = was.has(r.lineno);
+    if (now !== before) out.push({ lineno: r.lineno, from: before ? '?' : null, to: now ? '?' : null });
+  }
+  return out;
+};
+
+const pad = n => String(n).padStart(2, '0');
+const ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;          // m is 0-based
+const monthStart = (y, m) => ymd(y, m, 1);
+const monthEnd = (y, m) => ymd(y, m, new Date(y, m + 1, 0).getDate());
+
+// Period -> { from, to, end }. `to` is capped at today (the default statement date);
+// `end` is the real last day of the period (a register also shows future-dated entries).
+function periodRange(period, month, year) {
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth(), t = today();
+  const span = (d0, d1, cap) => { const e = monthEnd(d1.getFullYear(), d1.getMonth()); return { from: monthStart(d0.getFullYear(), d0.getMonth()), to: cap && e > t ? t : e, end: e }; };
+  switch (period) {
+    case 'this': return span(now, now, true);
+    case 'last': { const d = new Date(y, m - 1, 1); return span(d, d, false); }
+    case 'last3': return span(new Date(y, m - 2, 1), now, true);
+    case 'custom': { const d = new Date(+year || y, +month, 1); return span(d, d, true); }
+    default: return { from: null, to: t, end: null };
+  }
+}
+const rRange = () => periodRange($('rPeriod').value, $('rMonth').value, $('rYear').value);
+const rFrom = () => rRange().from;
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fillMonths(monthSel, yearInput) {
+  if ($(monthSel).options.length) return;
+  $(monthSel).innerHTML = MONTHS.map((n, i) => `<option value="${i}">${n}</option>`).join('');
+  $(monthSel).value = new Date().getMonth(); $(yearInput).value = new Date().getFullYear();
+}
+
+function applyPeriod() {
+  $('rCustom').style.display = $('rPeriod').value === 'custom' ? '' : 'none';
+  const { to } = rRange();
+  if (to) $('rDate').value = to;
+  loadRec(false);
+}
+
+function initRec() {
+  fillMonths('rMonth', 'rYear');
+  const opts = allAccounts.filter(a => !a.closed && /^(Assets|Liabilities):/.test(a.account)).map(a => a.account);
+  if ($('rAcct').options.length !== opts.length) {
+    $('rAcct').innerHTML = opts.map(a => `<option>${esc(a)}</option>`).join('');
+  }
+  $('rDate').value ||= today();
+  loadRec(true);
+}
+
+async function loadRec(resetTicks) {
+  const account = $('rAcct').value;
+  if (!account) return;
+  const r = await fetch('/api/reconcile?account=' + encodeURIComponent(account) + '&through=' + $('rDate').value);
+  const body = await r.json();
+  if (body.error) { rStatus(body.error, 'bad'); return; }
+  rec.data = body;
+  rec.ticks = resetTicks ? serverMarked() : new Set([...rec.ticks].filter(n => body.rows.some(x => x.lineno === n && !x.locked)));
+  renderRec();
+}
+
+function rStatus(msg, cls) { tone($('rStatus'), cls || ''); $('rStatus').textContent = msg; }
+
+function renderRec() {
+  const d = rec.data; if (!d) return;
+  $('rStmtLabel').textContent = isLiability() ? 'Statement balance (amount owed)' : 'Statement ending balance';
+  let ticked = 0, open = 0;
+  for (const r of d.rows) { if (!r.locked && rec.ticks.has(r.lineno)) ticked += num(r.amount); if (!r.locked && !rec.ticks.has(r.lineno)) open++; }
+  const cleared = num(d.cleared), computed = cleared + ticked;
+  const raw = $('rStmt').value.trim();
+  const stmt = raw === '' || isNaN(num(raw)) ? null : (isLiability() ? -num(raw) : num(raw));
+  const diff = stmt === null ? null : stmt - computed;
+  const zero = diff !== null && Math.abs(diff) < 0.005;
+  const shown = v => isLiability() ? money(-v) : money(v);
+  $('rSum').innerHTML = [['Reconciled', shown(cleared)], ['Ticked', shown(ticked)], ['Computed', shown(computed)],
+    ['Statement', stmt === null ? '—' : shown(stmt)], ['Difference', diff === null ? '—' : (zero ? '0.00 ✓' : shown(diff))]]
+    .map(([k, v]) => `<div><span>${k}</span><b class="${k === 'Difference' && diff !== null ? (zero ? 'ok' : 'bad') : ''}">${v}</b></div>`).join('')
+    + `<div><span>Currency</span><b>${esc(d.currency)}</b></div>`;
+  const hide = $('rHide').checked, from = rFrom();
+  const inPeriod = r => !from || r.date >= from;
+  const hiddenCount = d.rows.filter(r => hide && r.locked && inPeriod(r)).length;
+  const older = d.rows.filter(r => !inPeriod(r));
+  const olderOpen = older.filter(r => !r.locked && !rec.ticks.has(r.lineno)).length;
+  const hideT = $('rHideTicked').checked;
+  const isTicked = r => !r.locked && rec.ticks.has(r.lineno);
+  const hiddenT = d.rows.filter(r => hideT && isTicked(r) && inPeriod(r)).length;
+  $('rHiddenT').textContent = hiddenT ? `(${hiddenT} hidden)` : '';
+  $('rHidden').textContent = hiddenCount ? `(${hiddenCount} hidden)` : '';
+  $('rOlder').textContent = older.length
+    ? `${older.length} earlier transaction(s) not shown` + (olderOpen ? `, ${olderOpen} of them still unreconciled` : '') : '';
+  $('rTable').innerHTML = d.rows.filter(r => inPeriod(r) && !(hide && r.locked) && !(hideT && isTicked(r))).map(r => {
+    const on = r.locked || rec.ticks.has(r.lineno);
+    const st = r.locked ? 'reconciled' : (rec.ticks.has(r.lineno) ? (serverMarked().has(r.lineno) ? 'marked ?' : 'will mark') : 'pending');
+    return `<tr class="${r.locked ? 'cleared' : (rec.ticks.has(r.lineno) ? 'marked' : 'pending')}">
+      <td><input type="checkbox" data-l="${r.lineno}" ${on ? 'checked' : ''} ${r.locked ? 'disabled' : ''}></td>
+      <td>${r.date}</td><td>${esc(r.payee)} <span class="muted">${esc(r.narration)}</span><br><span class="muted">${r.other.map(esc).join(', ')}</span></td>
+      <td class="num">${esc(r.amount)}</td><td class="st">${st}</td></tr>`;
+  }).join('') || `<tr><td class="muted">${d.rows.length ? 'Nothing to show here (reconciled, ticked or outside the period)' : 'No transactions for this account up to that date'}</td></tr>`;
+  $('rTable').querySelectorAll('input[data-l]').forEach(c => c.onchange = () => {
+    const n = +c.dataset.l; c.checked ? rec.ticks.add(n) : rec.ticks.delete(n); renderRec();
+  });
+  const dirty = dirtyChanges().length > 0;
+  $('rSaveBtn').disabled = !dirty || rec.busy;
+  $('rFinish').disabled = !(zero && rec.ticks.size > 0) || rec.busy;
+  $('rAssert').disabled = open > 0;
+  if (open > 0) $('rAssert').checked = false;
+  $('rAssertLabel').textContent = `Add a balance assertion on ${nextDay($('rDate').value)}` + (open > 0 ? ' (needs every transaction ticked)' : '');
+  if (d.ignored_currencies.length) rStatus('Other currencies in this account are not shown: ' + d.ignored_currencies.join(', '), 'muted');
+}
+
+async function saveRec() {
+  const changes = dirtyChanges();
+  if (!changes.length) return true;
+  const { status, body } = await post('/api/reconcile/save', { hash: rec.data.hash, account: $('rAcct').value, changes });
+  if (body.error) { rStatus(body.error, 'bad'); return false; }
+  await loadRec(false);
+  return true;
+}
+
+async function guarded(fn) {
+  rec.busy = true; renderRec();
+  try { await fn(); } finally { rec.busy = false; renderRec(); }
+}
+
+$('rSaveBtn').onclick = () => guarded(async () => { if (await saveRec()) rStatus('✓ Progress saved', 'ok'); });
+$('rFinish').onclick = () => guarded(async () => {
+  if (!(await saveRec())) return;
+  const raw = $('rStmt').value.trim().replace(/[,$\s]/g, '');
+  const statement = isLiability() ? (raw.startsWith('-') ? raw.slice(1) : '-' + raw) : raw;
+  const { body } = await post('/api/reconcile/finish', {
+    hash: rec.data.hash, account: $('rAcct').value, through: $('rDate').value, statement,
+    currency: rec.data.currency, balance_assertion: $('rAssert').checked && !$('rAssert').disabled,
+  });
+  if (body.error) { rStatus(body.error, 'bad'); return; }
+  await loadRec(true);
+  loadRecent();
+  rStatus(`✓ Reconciled ${body.reconciled} posting(s)` + (body.promoted ? `; ${body.promoted} transaction(s) approved (! → *)` : ''), 'ok');
+});
+$('rAcct').onchange = () => { $('rStmt').value = ''; loadRec(true); };
+$('rDate').onchange = () => loadRec(false);
+$('rStmt').oninput = renderRec;
+$('rHide').onchange = renderRec;
+$('rHideTicked').onchange = renderRec;
+$('rPeriod').onchange = applyPeriod;
+$('rMonth').onchange = applyPeriod;
+$('rYear').onchange = applyPeriod;
+
+for (const id of ['date', 'flag', 'narration', 'tags', 'links']) $(id).addEventListener('input', refresh);
+$('payee').addEventListener('input', refresh);
+$('payee').addEventListener('change', prefill);
+$('addPosting').onclick = () => { addPosting(); };
+$('save').onclick = save;
+</script>

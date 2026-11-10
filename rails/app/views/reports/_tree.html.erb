@@ -1,0 +1,11 @@
+<table class="<%= ui(:table) %>">
+  <% if rows.empty? %>
+    <tr><td class="muted">Nothing in this period</td></tr>
+  <% end %>
+  <% rows.each do |r| %>
+    <tr>
+      <td class="<%= depth_pad(r["depth"]) %><%= " font-semibold" if r["depth"].zero? %>"><%= account_link(r["account"], r["depth"].zero? ? r["account"] : r["name"]) %></td>
+      <td class="num"><%= amounts(r["total"]) %></td>
+    </tr>
+  <% end %>
+</table>

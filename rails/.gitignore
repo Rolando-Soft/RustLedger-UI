@@ -1,0 +1,7 @@
+# Installed gems and runtime files
+/vendor/bundle/
+/.bundle/
+/tmp/
+/log/
+/app/assets/builds/*
+!/app/assets/builds/.keep

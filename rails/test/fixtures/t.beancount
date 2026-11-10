@@ -1,0 +1,31 @@
+option "operating_currency" "USD"
+include "inc.beancount"
+
+2024-01-01 open Assets:Bank:Checking USD
+2024-01-01 open Liabilities:Card
+2024-01-01 open Expenses:Food
+2024-01-01 open Expenses:Rent
+2024-01-01 open Income:Salary
+2024-01-01 open Equity:Opening-Balances
+2024-01-01 open Expenses:Unused
+  note-meta: "kept"
+
+2024-01-02 * "Opening"
+  Assets:Bank:Checking    1000.00 USD
+  Equity:Opening-Balances
+
+2024-01-05 ! "Grocer" "Weekly shop" #food
+  Assets:Bank:Checking     -42.10 USD
+  Expenses:Food             42.10 USD
+
+2024-01-10 ! "Landlord" "January rent"
+  Assets:Bank:Checking    -500.00 USD
+  ? Expenses:Rent          500.00 USD
+
+2024-01-15 * "Employer" "Paycheck"
+  * Assets:Bank:Checking  1500.00 USD
+  Income:Salary
+
+2024-01-20 ! "Grocer" "Top-up"
+  Liabilities:Card         -12.5 USD
+  Expenses:Food             12.5 USD

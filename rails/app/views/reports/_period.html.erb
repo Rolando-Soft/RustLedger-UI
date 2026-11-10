@@ -1,0 +1,12 @@
+<form method="get" action="<%= path %>" class="<%= ui(:row) %>">
+  <% if show_from %>
+    <div class="<%= ui(:cell_150) %>"><label for="from" class="<%= ui(:label) %>">From</label><input type="date" id="from" name="from" value="<%= @r["from"] %>" class="<%= ui(:field) %> w-full"></div>
+  <% end %>
+  <div class="<%= ui(:cell_150) %>"><label for="to" class="<%= ui(:label) %>"><%= show_from ? "To" : "As of" %></label><input type="date" id="to" name="to" value="<%= @r["to"] %>" class="<%= ui(:field) %> w-full"></div>
+  <div class="<%= ui(:cell_auto) %>"><button type="submit" class="<%= ui(:primary) %> max-sm:w-full">Show</button></div>
+  <div class="<%= ui(:cell) %> flex flex-wrap gap-x-3 gap-y-1 text-[.85rem] pb-2">
+    <% period_links(show_from).each do |label, query| %>
+      <a href="<%= path %><%= query %>" class="text-accent no-underline hover:underline"><%= label %></a>
+    <% end %>
+  </div>
+</form>

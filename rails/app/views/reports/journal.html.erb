@@ -1,0 +1,41 @@
+<%= render "reports/nav" %>
+<h1 class="<%= ui(:h1) %>">Journal</h1>
+<form method="get" action="/reports/journal" class="<%= ui(:row) %>">
+  <div class="<%= ui(:cell_190) %>"><label for="type" class="<%= ui(:label) %>">Entry type</label>
+    <select id="type" name="type" class="<%= ui(:field) %> w-full">
+      <option value="">All types</option>
+      <% Ledger::JOURNAL_TYPES.each do |t| %>
+        <option value="<%= t %>"<%= " selected" if @r["type"] == t %>><%= t %></option>
+      <% end %>
+    </select></div>
+  <div class="<%= ui(:cell_auto) %>"><button type="submit" class="<%= ui(:primary) %> max-sm:w-full">Show</button></div>
+</form>
+<p class="<%= ui(:hint) %> mb-3"><%= @r["count"] %> <%= @r["count"] == 1 ? "entry" : "entries" %>, newest first. Page <%= @r["page"] %> of <%= @r["pages"] %>.</p>
+<table class="<%= ui(:table) %>">
+  <tr class="muted"><td>Date</td><td>Type</td><td>Entry</td><td class="num">Amount</td></tr>
+  <% @r["entries"].each do |e| %>
+    <tr>
+      <td class="whitespace-nowrap"><%= e["date"] %></td>
+      <td><%= e["type"] %><%= " #{e["flag"]}" if e["flag"] %></td>
+      <td>
+        <% if e["type"] == "transaction" %>
+          <span class="font-semibold"><%= e["payee"] %></span> <%= e["narration"] %>
+          <% e["postings"].each do |p| %>
+            <br><span class="muted"><%= "#{p["flag"]} " if p["flag"] %></span><%= account_link(p["account"]) %>
+          <% end %>
+        <% else %>
+          <span class="font-mono text-[.8rem]"><%= e["text"] %></span>
+        <% end %>
+      </td>
+      <td class="num"><% e["postings"].each do |p| %><br><%= p["amount"] %> <%= p["currency"] %><% end %></td>
+    </tr>
+  <% end %>
+</table>
+<div class="flex gap-2 mt-3">
+  <% if @r["page"] > 1 %>
+    <a href="?<%= { type: @r["type"].presence, page: @r["page"] - 1 }.compact.to_query %>" class="<%= ui(:btn) %> inline-flex items-center">← Newer</a>
+  <% end %>
+  <% if @r["page"] < @r["pages"] %>
+    <a href="?<%= { type: @r["type"].presence, page: @r["page"] + 1 }.compact.to_query %>" class="<%= ui(:btn) %> inline-flex items-center">Older →</a>
+  <% end %>
+</div>

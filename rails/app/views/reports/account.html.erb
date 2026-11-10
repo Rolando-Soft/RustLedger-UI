@@ -1,0 +1,36 @@
+<%= render "reports/nav" %>
+<h1 class="<%= ui(:h1) %> break-all"><%= @r["account"] %></h1>
+<%= render "reports/period", path: request.path, show_from: true %>
+<p class="<%= ui(:hint) %> mb-3"><%= period_text(@r) %>. Includes sub-accounts.</p>
+<p class="text-[1.05rem] font-semibold tabular-nums">Balance<%= " at #{@r["to"]}" if @r["to"] %>: <%= amounts_inline(@r["balance"]) %></p>
+<table class="<%= ui(:table) %> mt-3">
+  <tr class="muted"><td>Account</td><td>Opened</td><td>Closed</td></tr>
+  <% @r["accounts"].each do |a| %>
+    <tr><td><%= account_link(a["account"]) %></td><td><%= a["open"] %></td><td><%= a["closed"] %></td></tr>
+  <% end %>
+</table>
+<h2 class="<%= ui(:h2) %>">Change in this period</h2>
+<%= render "reports/tree", rows: @r["tree"] %>
+<h2 class="<%= ui(:h2) %>">By month</h2>
+<table class="<%= ui(:table) %>">
+  <tr class="muted"><td>Month</td><td class="num">Change</td><td class="num">Balance at month end</td></tr>
+  <% @r["months"].each do |m| %>
+    <tr><td><%= m["month"] %></td><td class="num"><%= amounts(m["change"]) %></td><td class="num"><%= amounts(m["balance"]) %></td></tr>
+  <% end %>
+</table>
+<h2 class="<%= ui(:h2) %>">Postings</h2>
+<table class="<%= ui(:table) %>">
+  <tr class="muted"><td>Date</td><td>Description</td><td>Account</td><td class="num">Amount</td><td class="num">Balance</td></tr>
+  <% if @r["journal"].empty? %>
+    <tr><td class="muted">No postings in this period</td></tr>
+  <% end %>
+  <% @r["journal"].each do |j| %>
+    <tr>
+      <td class="whitespace-nowrap"><%= j["date"] %> <%= j["flag"] %></td>
+      <td><%= j["payee"] %> <span class="muted"><%= j["narration"] %></span></td>
+      <td><%= account_link(j["account"]) %></td>
+      <td class="num whitespace-nowrap"><%= j["amount"] %> <%= j["currency"] %></td>
+      <td class="num whitespace-nowrap"><%= j["balance"] %> <%= j["currency"] %></td>
+    </tr>
+  <% end %>
+</table>

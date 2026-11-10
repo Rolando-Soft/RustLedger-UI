@@ -1,0 +1,15 @@
+<%= render "reports/nav" %>
+<h1 class="<%= ui(:h1) %>">Events</h1>
+<%= render "reports/period", path: request.path, show_from: true %>
+<p class="<%= ui(:hint) %> mb-3"><%= period_text(@r) %>.</p>
+<% if @r["types"].empty? %>
+  <p class="<%= ui(:hint) %>">No events in this period.</p>
+<% end %>
+<% @r["types"].each do |t| %>
+  <h2 class="<%= ui(:h2_tight) %>"><%= t["type"] %></h2>
+  <table class="<%= ui(:table) %> mb-4">
+    <% t["events"].each do |e| %>
+      <tr><td class="whitespace-nowrap"><%= e["date"] %></td><td class="whitespace-normal"><%= e["description"] %></td></tr>
+    <% end %>
+  </table>
+<% end %>

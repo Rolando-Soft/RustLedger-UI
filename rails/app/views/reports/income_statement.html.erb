@@ -1,0 +1,25 @@
+<%= render "reports/nav" %>
+<h1 class="<%= ui(:h1) %>">Income statement</h1>
+<%= render "reports/period", path: request.path, show_from: true %>
+<p class="<%= ui(:hint) %> mb-3"><%= period_text(@r) %>. Amounts are as they are in the ledger: income is negative and expenses are positive, so a negative net income means more came in than went out.</p>
+<div class="grid grid-cols-1 gap-x-8 md:grid-cols-2">
+  <section>
+    <h2 class="<%= ui(:h2_tight) %>">Income</h2>
+    <%= render "reports/tree", rows: @r["income"] %>
+    <p class="mt-2 font-semibold tabular-nums">Total income: <%= amounts_inline(@r["income_total"]) %></p>
+  </section>
+  <section>
+    <h2 class="<%= ui(:h2_tight) %>">Expenses</h2>
+    <%= render "reports/tree", rows: @r["expenses"] %>
+    <p class="mt-2 font-semibold tabular-nums">Total expenses: <%= amounts_inline(@r["expenses_total"]) %></p>
+  </section>
+</div>
+<h2 class="<%= ui(:h2) %>">Net income</h2>
+<p class="text-[1.05rem] font-semibold tabular-nums"><%= amounts_inline(@r["net_income"]) %></p>
+<h2 class="<%= ui(:h2) %>">By month</h2>
+<table class="<%= ui(:table) %>">
+  <tr class="muted"><td>Month</td><td class="num">Income</td><td class="num">Expenses</td><td class="num">Net income</td></tr>
+  <% @r["months"].each do |m| %>
+    <tr><td><%= m["month"] %></td><td class="num"><%= amounts(m["income"]) %></td><td class="num"><%= amounts(m["expenses"]) %></td><td class="num"><%= amounts(m["net"]) %></td></tr>
+  <% end %>
+</table>
