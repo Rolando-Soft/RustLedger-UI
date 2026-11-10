@@ -1,6 +1,0 @@
-<%= render "reports/nav" %>
-<h1 class="<%= ui(:h1) %>">Trial balance</h1>
-<%= render "reports/period", path: request.path, show_from: true %>
-<p class="<%= ui(:hint) %> mb-3"><%= period_text(@r) %>. Every account's change in the period. The grand total is zero unless some postings convert one currency into another with a price (@) or a cost ({}); this app does not add a conversions line for those.</p>
-<%= render "reports/tree", rows: @r["rows"] %>
-<p class="mt-2 font-semibold tabular-nums">Grand total: <%= amounts_inline(@r["total"]) %></p>

@@ -1,6 +1,0 @@
-<nav class="flex flex-wrap gap-1.5 items-center mb-4">
-  <a href="/" class="<%= ui(:chip) %> inline-flex items-center">← Ledger</a>
-  <% ReportsHelper::REPORTS.each do |label, path| %>
-    <a href="<%= path %>" class="<%= ui(:chip) %> inline-flex items-center <%= "active" if request.path == path %>"><%= label %></a>
-  <% end %>
-</nav>
